@@ -1,0 +1,206 @@
+---
+title: "{{LABEL}} — drc analysis"
+subtitle: "{{GUIDELINE}} · endpoint: {{ENDPOINT}}"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    embed-resources: true
+    code-fold: true
+params:
+  sample_id: "example"
+  data_file: null
+  test_type: "{{ID}}"
+  seed: 20260831
+  compare_models: true
+  fct: null
+  save_fit: true
+execute:
+  warning: true
+  message: false
+---
+
+```{r setup}
+#| include: false
+library(crworkflows)
+library(dplyr)
+library(ggplot2)
+
+set.seed(params$seed)
+knitr::opts_chunk$set(fig.width = 7, fig.height = 4.5, dpi = 200)
+
+# Quarto renders with the working directory set to this document, so the output
+# root is resolved from the project marker rather than relatively. Without this
+# every workflow would create its own outputs/ folder beside itself.
+options(crworkflows.output_root = file.path(cr_project_root(), "outputs"))
+```
+
+## Purpose
+
+This document runs a complete concentration-response analysis of a
+{{LABEL}} test using the `drc` engine, and produces the figure, the estimate
+table and the archived model fit that a report requires. It is intended to be
+run once per sample. Change `params$sample_id` and `params$data_file` at the top
+of the file; nothing below needs editing for a routine analysis.
+
+The `drc` engine fits one mean function chosen from a small candidate set. That
+choice is a decision made from the data, so it is shown in full below rather
+than applied silently.
+
+## Test and sample
+
+```{r test-metadata}
+tt <- cr_test_type(params$test_type)
+knitr::kable(
+  data.frame(
+    Item = c("Sample", "Test type", "Guideline", "Endpoint",
+             "Concentration units", "Error structure", "Default mean function"),
+    Value = c(params$sample_id, tt$label, tt$guideline, tt$endpoint,
+              tt$conc_units, tt$drc_type, tt$drc_fct)
+  )
+)
+```
+
+## Data
+
+The default is the simulated example dataset shipped with the package. Set
+`params$data_file` to a csv exported from the laboratory information system to
+analyse a real sample. The csv must carry the columns listed above;
+`inst/extdata/{{ID}}.csv` is a template of the expected layout.
+
+```{r load-data}
+cr_data <- if (is.null(params$data_file)) {
+  get(params$test_type, envir = asNamespace("crworkflows"))
+} else {
+  readr::read_csv(params$data_file, show_col_types = FALSE) |> as.data.frame()
+}
+
+knitr::kable(head(cr_data, 10), caption = "First ten rows of the analysis dataset")
+```
+
+## Data checks
+
+The checks below are the ones that decide whether the analysis is valid, not a
+summary of the data. Anything reported here must be resolved or recorded in the
+report before the estimates are used.
+
+```{r checks}
+checks <- check_cr_data(cr_data, params$test_type)
+checks
+```
+
+```{r design}
+knitr::kable(
+  summarise_design(cr_data, params$test_type),
+  digits = 3,
+  caption = "Replication and mean response at each concentration"
+)
+```
+
+```{r raw-plot}
+#| fig-cap: "Observed data. Open symbols are controls, plotted one decade below the lowest tested concentration because a zero cannot be placed on a logarithmic axis."
+plot_cr_data(cr_data, params$test_type)
+```
+
+## Choice of mean function
+
+Each candidate is fitted and compared. AIC ranks the candidates; the lack-of-fit
+p-value tests the selected curve against a model with a separate mean at each
+concentration, and a small value means the curve does not describe the data
+regardless of how it ranks against the other candidates.
+
+Selection is by AIC, but a fit with a lack-of-fit p-value below 0.05 should not
+be reported without comment even when it ranks first.
+
+```{r compare}
+comparison <- if (params$compare_models) {
+  compare_drc_models(cr_data, params$test_type)
+} else {
+  NULL
+}
+if (!is.null(comparison)) {
+  knitr::kable(comparison, digits = 4, row.names = FALSE,
+    caption = "Candidate mean functions, ordered by AIC")
+}
+```
+
+```{r select}
+selected <- if (!is.null(params$fct)) {
+  params$fct
+} else if (!is.null(comparison)) {
+  comparison$fct[which(comparison$converged)][1]
+} else {
+  tt$drc_fct
+}
+cat("Mean function used:", selected, "\n")
+```
+
+## Model fitting
+
+```{r fit}
+fit <- fit_cr_drc(
+  cr_data, params$test_type,
+  fct = drc_fct(selected),
+  validate = FALSE
+)
+summary(fit)
+```
+
+### Residual check
+
+Systematic curvature in the residuals means the mean function is wrong, which
+AIC alone will not reveal when every candidate is wrong in the same way.
+
+```{r residuals}
+#| fig-cap: "Residuals against fitted values. A trend, or a fan shape, indicates that the mean function or the error structure is misspecified."
+resid_df <- data.frame(fitted = fitted(fit), residual = residuals(fit))
+ggplot(resid_df, aes(fitted, residual)) +
+  geom_hline(yintercept = 0, linetype = 2) +
+  geom_point(size = 2, alpha = 0.8) +
+  labs(x = "Fitted value", y = "Residual") +
+  theme_bw()
+```
+
+## Results
+
+ECx values are referenced to the fitted control response, which is the
+convention in ecotoxicological reporting and matches what the `bayesnec`
+workflow reports, so the two engines answer the same question.
+
+```{r results}
+results <- cr_results_table(
+  fit, params$test_type,
+  sample_id = params$sample_id
+)
+knitr::kable(results[, c("estimate_type", "level", "estimate", "lower", "upper")],
+  digits = 4,
+  caption = paste0("Estimates in ", tt$conc_units,
+                   ". Intervals are 95% delta-method confidence intervals.")
+)
+```
+
+```{r fit-plot}
+#| fig-cap: "Fitted curve with its 95% confidence interval."
+plot_cr_fit(fit, cr_data, params$test_type)
+```
+
+## Outputs and provenance
+
+```{r outputs}
+stem <- paste(params$sample_id, params$test_type, "drc", sep = "_")
+paths <- write_cr_outputs(
+  fit = fit,
+  plot = plot_cr_fit(fit, cr_data, params$test_type),
+  results = results,
+  stem = stem,
+  save_fit = params$save_fit
+)
+knitr::kable(data.frame(output = names(paths), path = unname(paths)))
+```
+
+```{r provenance}
+knitr::kable(t(cr_session_record(seed = params$seed, engine = "drc")),
+  col.names = "Value",
+  caption = "Software versions and seed."
+)
+```

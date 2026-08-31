@@ -1,0 +1,22 @@
+# Rendered reports and analysis products are regenerated from the workflows and
+# the data, so they are not tracked. Delete outputs/ and re-render to reproduce.
+outputs/figures/
+outputs/tables/
+outputs/fits/
+outputs/reports/
+
+# Safety-net backups of untracked files, per the working-directory conventions.
+superceded/
+
+# Quarto and knitr intermediates
+*_files/
+*.html
+/.quarto/
+**/.quarto/
+
+# R
+.Rproj.user/
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj

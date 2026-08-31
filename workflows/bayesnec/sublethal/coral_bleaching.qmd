@@ -1,0 +1,201 @@
+---
+title: "Coral symbiont retention (10 d) — bayesnec analysis"
+subtitle: "no standard guideline · endpoint: symbiont density relative to control"
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    embed-resources: true
+    code-fold: true
+params:
+  sample_id: "example"
+  data_file: null
+  test_type: "coral_bleaching"
+  seed: 20260831
+  chains: 4
+  iter: 4000
+  warmup: 2000
+  model: null
+  save_fit: true
+execute:
+  warning: true
+  message: false
+---
+
+```{r setup}
+#| include: false
+library(crworkflows)
+library(dplyr)
+library(ggplot2)
+
+set.seed(params$seed)
+knitr::opts_chunk$set(fig.width = 7, fig.height = 4.5, dpi = 200)
+
+# Quarto renders with the working directory set to this document, so the output
+# root is resolved from the project marker rather than relatively. Without this
+# every workflow would create its own outputs/ folder beside itself.
+options(crworkflows.output_root = file.path(cr_project_root(), "outputs"))
+```
+
+## Purpose
+
+This document runs a complete concentration-response analysis of a
+Coral symbiont retention (10 d) test using the `bayesnec` engine, and produces the figure, the
+estimate table and the archived model fit that a report requires. It is
+intended to be run once per sample. Change `params$sample_id` and
+`params$data_file` at the top of the file; nothing below needs editing for a
+routine analysis.
+
+Every decision the analysis makes that is not routine is printed rather than
+applied silently, so that it appears in the rendered record.
+
+## Test and sample
+
+```{r test-metadata}
+tt <- cr_test_type(params$test_type)
+knitr::kable(
+  data.frame(
+    Item = c("Sample", "Test type", "Guideline", "Endpoint",
+             "Concentration units", "Response distribution", "Candidate models"),
+    Value = c(params$sample_id, tt$label, tt$guideline, tt$endpoint,
+              tt$conc_units, tt$bnec_family,
+              if (is.null(params$model)) tt$bnec_model else params$model)
+  )
+)
+```
+
+## Data
+
+The default is the simulated example dataset shipped with the package. Set
+`params$data_file` to a csv exported from the laboratory information system to
+analyse a real sample. The csv must carry the columns listed in the table
+above; `inst/extdata/coral_bleaching.csv` is a template of the expected layout.
+
+```{r load-data}
+cr_data <- if (is.null(params$data_file)) {
+  get(params$test_type, envir = asNamespace("crworkflows"))
+} else {
+  readr::read_csv(params$data_file, show_col_types = FALSE) |> as.data.frame()
+}
+
+knitr::kable(head(cr_data, 10), caption = "First ten rows of the analysis dataset")
+```
+
+## Data checks
+
+The checks below are the ones that decide whether the analysis is valid, not a
+summary of the data. Anything reported here must be resolved or recorded in the
+report before the estimates are used.
+
+```{r checks}
+checks <- check_cr_data(cr_data, params$test_type)
+checks
+```
+
+```{r design}
+knitr::kable(
+  summarise_design(cr_data, params$test_type),
+  digits = 3,
+  caption = "Replication and mean response at each concentration"
+)
+```
+
+```{r raw-plot}
+#| fig-cap: "Observed data. Open symbols are controls, plotted one decade below the lowest tested concentration because a zero cannot be placed on a logarithmic axis."
+plot_cr_data(cr_data, params$test_type)
+```
+
+## Model fitting
+
+`bayesnec` fits every model in the candidate set and averages them by their
+stacking weights, so no single model form has to be chosen in advance. The
+family and its link come from the test-type registry: the link is always the
+identity, which keeps `top`, `bot` and `nec` on the scale of the measured
+response.
+
+```{r fit}
+#| results: hide
+fit <- fit_cr_bayesnec(
+  cr_data, params$test_type,
+  model = params$model,
+  validate = FALSE,
+  seed = params$seed,
+  chains = params$chains,
+  iter = params$iter,
+  warmup = params$warmup,
+  refresh = 0
+)
+```
+
+### Convergence
+
+A fit that has not converged must not be reported. R-hat above 1.05, or a bulk
+effective sample size below about 400, means the chains have not mixed and the
+estimates below are not usable.
+
+```{r convergence}
+summary(fit)
+```
+
+### Model weights
+
+Where more than one model was fitted, the weights show how much each
+contributed to the averaged prediction. A weight concentrated entirely on one
+model means the averaging has made no difference; weights spread across models
+with different shapes mean the data do not determine the curve form, which is
+worth recording in the report.
+
+```{r weights}
+if (inherits(fit, "bayesmanecfit")) {
+  knitr::kable(cr_model_weights(fit), digits = 3, row.names = FALSE,
+    caption = "Stacking weights, ordered by contribution")
+} else {
+  cat("A single model was fitted:", fit$model, "\n")
+}
+```
+
+## Results
+
+The threshold estimate is labelled with the quantity actually estimated.
+`NEC` means every model in the fit carries the threshold parameter. `NSEC`
+means none does, so the estimate comes from a smooth curve. `N(S)EC` means the
+candidate set mixes the two and the model-averaged estimate is a weighted
+mixture of the two kinds of draw; it is not a NEC and must not be reported as
+one.
+
+```{r results}
+results <- cr_results_table(
+  fit, params$test_type,
+  sample_id = params$sample_id
+)
+knitr::kable(results[, c("estimate_type", "level", "estimate", "lower", "upper")],
+  digits = 4,
+  caption = paste0("Estimates in ", tt$conc_units, ". Intervals are 95% credible intervals.")
+)
+```
+
+```{r fit-plot}
+#| fig-cap: "Fitted model-averaged curve with its 95% credible interval."
+plot_cr_fit(fit, cr_data, params$test_type)
+```
+
+## Outputs and provenance
+
+```{r outputs}
+stem <- paste(params$sample_id, params$test_type, "bayesnec", sep = "_")
+paths <- write_cr_outputs(
+  fit = fit,
+  plot = plot_cr_fit(fit, cr_data, params$test_type),
+  results = results,
+  stem = stem,
+  save_fit = params$save_fit
+)
+knitr::kable(data.frame(output = names(paths), path = unname(paths)))
+```
+
+```{r provenance}
+knitr::kable(t(cr_session_record(seed = params$seed, engine = "bayesnec")),
+  col.names = "Value",
+  caption = "Software versions and seed. All of these are needed to reproduce the fit; the seed alone is not sufficient."
+)
+```

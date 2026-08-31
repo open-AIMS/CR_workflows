@@ -1,0 +1,3 @@
+# Marker file identifying the root of the CR_workflows project.
+# cr_project_root() walks up from a rendering document until it finds this file,
+# so that every workflow writes to the same outputs/ tree.

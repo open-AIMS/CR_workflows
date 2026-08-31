@@ -1,0 +1,33 @@
+Package: crworkflows
+Title: Concentration-Response Analysis Workflows for Commercial Ecotoxicology Laboratories
+Version: 0.0.0.9000
+Authors@R:
+    person("Rebecca", "Fisher", email = "rebeccafisher76@gmail.com", role = c("aut", "cre"))
+Description: Example datasets, data validation, model fitting and reporting
+    functions supporting standardised concentration-response analysis of routine
+    ecotoxicological test types. Two independent fitting engines are supported:
+    Bayesian multi-model averaging via 'bayesnec' and frequentist non-linear
+    regression via 'drc'. Both engines are optional; install only the one in use.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Depends:
+    R (>= 4.1)
+Imports:
+    ggplot2,
+    rlang,
+    stats,
+    utils
+Suggests:
+    bayesnec (>= 2.1.3),
+    brms,
+    drc (>= 3.0.1),
+    dplyr,
+    knitr,
+    quarto,
+    readr,
+    testthat (>= 3.0.0),
+    withr
+Config/testthat/edition: 3
+Roxygen: list(markdown = TRUE)
+LazyData: true
+Config/roxygen2/version: 8.0.0
