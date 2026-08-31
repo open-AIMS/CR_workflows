@@ -20,14 +20,19 @@ Imports:
 Suggests:
     bayesnec (>= 2.1.3),
     brms,
+    bslib,
+    callr,
     cmdstanr,
-    drc (>= 3.0.1),
     dplyr,
+    drc (>= 3.0.1),
+    DT,
     knitr,
     quarto,
     readr,
+    shiny,
     testthat (>= 3.0.0),
-    withr
+    withr,
+    zip
 Additional_repositories: https://stan-dev.r-universe.dev
 Config/testthat/edition: 3
 Roxygen: list(markdown = TRUE)

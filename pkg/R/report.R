@@ -11,6 +11,9 @@
 #' @param stem File stem, typically `"<sample_id>_<test_type>_<engine>"`.
 #' @param root Output root directory.
 #' @param width,height Figure dimensions in inches.
+#' @param weights Model weights to archive alongside the estimates. Taken from
+#'   the fit by [cr_model_weights()] when not supplied, and written only where
+#'   more than one model contributed.
 #' @param save_fit Whether to save the fitted model object. Model-averaged
 #'   Bayesian fits are very large: the `algal_growth` example, twelve models at
 #'   four chains of 4000 iterations, serialises to 423 MB. A laboratory
@@ -21,13 +24,25 @@
 #' @export
 write_cr_outputs <- function(fit, plot, results, stem,
                              root = getOption("crworkflows.output_root", "outputs"),
-                             width = 6, height = 4.5, save_fit = TRUE) {
+                             width = 6, height = 4.5, save_fit = TRUE,
+                             weights = NULL) {
   paths <- c(
     figure = cr_output_path("figures", paste0(stem, ".png"), root = root),
     table = cr_output_path("tables", paste0(stem, "_results.csv"), root = root)
   )
   ggplot2::ggsave(paths[["figure"]], plot, width = width, height = height, dpi = 300)
   utils::write.csv(results, paths[["table"]], row.names = FALSE)
+
+  # The weights are part of the result, not a diagnostic: they say how much each
+  # candidate contributed to the reported estimate, and a reader of the archived
+  # csv cannot reconstruct them. Written where the fit was averaged.
+  if (is.null(weights)) {
+    weights <- tryCatch(cr_model_weights(fit), error = function(e) NULL)
+  }
+  if (!is.null(weights) && nrow(weights) > 1) {
+    paths["weights"] <- cr_output_path("tables", paste0(stem, "_weights.csv"), root = root)
+    utils::write.csv(weights, paths[["weights"]], row.names = FALSE)
+  }
   if (save_fit) {
     paths["fit"] <- cr_output_path("fits", paste0(stem, ".rds"), root = root)
     saveRDS(fit, paths[["fit"]])

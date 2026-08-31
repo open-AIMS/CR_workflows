@@ -242,3 +242,63 @@ Buckland band. Eleven tests were added, covering the weight arithmetic, the
 Buckland reduction cases, all fourteen test types, and the maED cross-check.
 
 ---
+
+## Session: project-scaffold (continued)
+Date: 2026-08-31
+Model: Claude Opus 5 (claude-opus-5[1m])
+
+**User:** Is it possible to make a user-friendly interface to this? ... this all
+needs to run on wsl and windows - just assume the user has the required
+packages/backend. Use cmdstanr, it's faster
+
+**Claude:** Added a Shiny application, `run_cr_app()`, with the analysis
+plumbing it needs moved into the package.
+
+**Design decision.** The application renders the same Quarto workflow documents
+the console functions render, rather than computing results itself. A second
+implementation would drift from the documents and would produce numbers with no
+traceable record behind them; as it stands every run leaves the same report,
+figure, table and provenance that a console run leaves.
+
+**Package changes supporting it.**
+
+- `cr_render_workflow()` and `cr_workflow_path()` move the render logic from
+  `workflows/_render.R` into the package so the app can use it without sourcing
+  a script.
+- The document is now rendered from a scratch copy rather than in place. Quarto
+  writes its html beside the source under a fixed name, so two renders of the
+  same test type at once would overwrite each other's working files. This was
+  confirmed by running two jobs on one document concurrently, which is now a
+  test.
+- `cr_project_root()` gained an option and environment-variable override, so a
+  document rendered from a scratch directory outside the project still writes to
+  the project's own `outputs/` tree.
+- `cr_start_job()`, `cr_job_status()`, `cr_job_outputs()`, `cr_stop_job()` and
+  `cr_bundle_outputs()` run an analysis in a background process via `callr`. A
+  model-averaged bayesnec fit takes eight to fifteen minutes, which would freeze
+  a Shiny session for its whole duration. Failure messages are read from the
+  process's stderr, which is the only place a Quarto or fitting error survives
+  once the process has exited.
+- `write_cr_outputs()` now archives the model weights beside the estimates.
+  These are part of the result rather than a diagnostic: they say how much each
+  candidate contributed, and a reader of the archived csv cannot reconstruct
+  them.
+
+**Interface behaviour.** The data checks gate the run: a structural problem
+stops the analysis in the interface rather than being discovered inside a
+background process minutes later. The model weights are shown beside the
+estimates and the threshold estimate keeps its `NEC`, `NSEC` or `N(S)EC` label,
+so the interface does not hide the decisions the analysis makes.
+
+Bayesian fits use the `cmdstanr` backend throughout, which is faster than
+`rstan` and avoids the Rtools requirement on Windows.
+
+**Verification.** The application serves on Windows and under WSL. Both engines
+were run through the background job runner on WSL: a drc analysis in 0.2
+minutes and a bayesnec analysis with the cmdstanr backend in 0.8 minutes, with
+the backend recorded in the report. Tests were added for the render helpers,
+the job lifecycle including concurrent renders and a failing job, and the
+application's server logic including the checks gate. `R CMD check` reports no
+errors, warnings or notes.
+
+---

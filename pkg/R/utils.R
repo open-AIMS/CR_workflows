@@ -22,11 +22,24 @@ require_engine <- function(engine = c("bayesnec", "drc")) {
 #' Quarto sets the working directory to the document's own folder, so a relative
 #' path would otherwise create an `outputs/` directory beside every document.
 #'
+#' The search can be short-circuited by the `crworkflows.project_root` option or
+#' the `CRWORKFLOWS_PROJECT_ROOT` environment variable. Both exist so that a
+#' document can be rendered from a scratch directory outside the project, which
+#' is what the app does to keep concurrent renders from colliding, while still
+#' writing to the project's own `outputs/` tree.
+#'
 #' @param path Directory to start from. Defaults to the working directory.
 #' @return The project root as a character string, or an error if no marker is
-#'   found above `path`.
+#'   found above `path` and no override is set.
 #' @export
 cr_project_root <- function(path = getwd()) {
+  override <- getOption(
+    "crworkflows.project_root",
+    Sys.getenv("CRWORKFLOWS_PROJECT_ROOT", "")
+  )
+  if (nzchar(override)) {
+    return(normalizePath(override, "/", mustWork = FALSE))
+  }
   path <- normalizePath(path, "/", mustWork = FALSE)
   repeat {
     if (file.exists(file.path(path, ".crproject"))) {

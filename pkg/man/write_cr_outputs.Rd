@@ -12,7 +12,8 @@ write_cr_outputs(
   root = getOption("crworkflows.output_root", "outputs"),
   width = 6,
   height = 4.5,
-  save_fit = TRUE
+  save_fit = TRUE,
+  weights = NULL
 )
 }
 \arguments{
@@ -34,6 +35,10 @@ four chains of 4000 iterations, serialises to 423 MB. A laboratory
 archiving many tests should set this to \code{FALSE} and re-fit from the
 recorded seed and package versions when a fit is needed again. \code{drc} fits
 are a few hundred kilobytes and can be kept without difficulty.}
+
+\item{weights}{Model weights to archive alongside the estimates. Taken from
+the fit by \code{\link[=cr_model_weights]{cr_model_weights()}} when not supplied, and written only where
+more than one model contributed.}
 }
 \value{
 Invisibly, a named character vector of the paths written.

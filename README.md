@@ -23,6 +23,7 @@ CR_workflows/
 │   ├── data/             fourteen example datasets, one per test type
 │   ├── data-raw/         the scripts that generate the datasets and their docs
 │   ├── inst/extdata/     the same datasets as csv, as input format templates
+│   ├── inst/app/         the Shiny interface
 │   └── tests/testthat/   unit tests
 ├── workflows/            end-to-end Quarto documents, edited in place
 │   ├── _templates/       one template per engine; the documents are built from these
@@ -74,7 +75,32 @@ document makes and writes the same figure, table and fit, but it does not
 render the report, which needs the Quarto CLI. Use it to verify the Bayesian
 analysis path where only the toolchain is available.
 
-## Running an analysis
+## The interface
+
+For routine use there is a Shiny application, which runs on Windows and under
+WSL:
+
+```r
+crworkflows::run_cr_app()
+```
+
+It takes a csv, shows the data checks before anything is fitted, runs the
+analysis, and hands back the report and outputs. It is a front end to the same
+Quarto workflow documents described below, not a second implementation: every
+run renders the same document, so there is one analysis path and the report
+remains the record.
+
+A `drc` analysis returns in seconds. A `bayesnec` analysis takes eight to
+fifteen minutes and is submitted as a background job, so the interface stays
+usable and several samples can run at once. Bayesian fits use the `cmdstanr`
+backend, which is faster than `rstan` and avoids the Rtools requirement on
+Windows.
+
+The interface does not hide the decisions the analysis makes. The data checks
+gate the run, the model weights are shown beside the estimates, and the
+threshold estimate keeps its `NEC`, `NSEC` or `N(S)EC` label.
+
+## Running an analysis from the console
 
 ```r
 source("workflows/_render.R")

@@ -11,7 +11,7 @@ cr_project_root(path = getwd())
 }
 \value{
 The project root as a character string, or an error if no marker is
-found above \code{path}.
+found above \code{path} and no override is set.
 }
 \description{
 Walks up from \code{path} looking for the \code{.crproject} marker file at the root of
@@ -19,4 +19,11 @@ the CR_workflows project. Workflow documents call this so that they write to
 one \verb{outputs/} tree regardless of which subdirectory they are rendered from:
 Quarto sets the working directory to the document's own folder, so a relative
 path would otherwise create an \verb{outputs/} directory beside every document.
+}
+\details{
+The search can be short-circuited by the \code{crworkflows.project_root} option or
+the \code{CRWORKFLOWS_PROJECT_ROOT} environment variable. Both exist so that a
+document can be rendered from a scratch directory outside the project, which
+is what the app does to keep concurrent renders from colliding, while still
+writing to the project's own \verb{outputs/} tree.
 }
