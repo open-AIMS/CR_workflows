@@ -2,20 +2,26 @@
 % Please edit documentation in R/plots.R
 \name{cr_model_weights}
 \alias{cr_model_weights}
-\title{Model weights from a bayesnec fit}
+\title{Model weights from an averaged fit of either engine}
 \usage{
 cr_model_weights(fit)
 }
 \arguments{
-\item{fit}{A \code{bayesnecfit} or \code{bayesmanecfit} object.}
+\item{fit}{A \code{bayesnecfit}, \code{bayesmanecfit} or \code{cr_drc_ma} object.}
 }
 \value{
-A data frame with columns \code{model} and \code{weight}, ordered by
-decreasing weight. A single-model fit returns one row with weight 1.
+A data frame whose first two columns are \code{model} and \code{weight},
+ordered by decreasing weight. A single-model fit returns one row with
+weight 1.
 }
 \description{
-Returns the stacking weights as a two-column data frame. The weights are
-stored in \code{mod_stats$wi}, which is an unnamed weights object rather than a
-named vector, so the model names have to be taken from the \code{model} column
-beside it.
+Returns the weights that combined the candidate models, in one format for
+both engines: \code{bayesnec} stacking weights and \code{drc} Akaike weights.
+}
+\details{
+The two are not the same quantity. Stacking weights are chosen to optimise
+the predictive performance of the combination. Akaike weights are a
+transformation of the relative AIC of each model on its own. Both say how
+much each candidate contributed, and neither is a probability that a model is
+correct.
 }

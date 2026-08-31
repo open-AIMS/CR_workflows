@@ -57,12 +57,31 @@ setting `params$model` to `"nec"`, and record that restriction in the report.
 
 The `drc` workflow reports no threshold estimate of any kind.
 
-**Model uncertainty is handled differently.** `drc` selects one mean function
-and reports intervals conditional on that choice being correct, so the reported
-uncertainty excludes the uncertainty in the choice itself. `bayesnec` averages
-over the candidate set, so its intervals include it. Where the candidate models
-disagree about the shape of the curve, the `bayesnec` intervals will be wider,
-and that difference is information rather than a discrepancy.
+**Both engines now average over their candidate set**, so both report intervals
+that include the uncertainty in the choice of curve form. The weighting schemes
+differ and are not the same quantity:
+
+| | `drc` | `bayesnec` |
+|---|---|---|
+| Weights | Akaike weights, `exp(-delta AIC / 2)` normalised | Stacking weights |
+| Basis | relative AIC of each model on its own | predictive performance of the combination |
+| Interval | Buckland unconditional interval | posterior of the averaged prediction |
+
+Neither set of weights is a probability that a model is correct.
+
+Averaging changes the interval, not usually the point estimate. Where one
+candidate carries almost all the weight, the averaged result is
+indistinguishable from that candidate fitted alone: on the hormetic example
+data, `BC.4` takes 72 per cent of the weight and the averaged EC50 differs from
+the single-model value in the third significant figure. Where the candidates
+disagree, the interval widens: on `daphnia_reproduction`, where the weight is
+spread across three mean functions, the model-averaged EC50 interval is about
+60 per cent wider than the best single model's. That widening is the
+information averaging adds, and it is the reason to prefer it.
+
+Single-model selection remains available in the `drc` workflow by setting
+`params$average` to `false`. The interval is then a delta-method confidence
+interval conditional on the selected function being the right one.
 
 **The likelihood may differ.** `bayesnec` uses the family recorded in the
 registry: Gamma for positive continuous responses, binomial for counts out of

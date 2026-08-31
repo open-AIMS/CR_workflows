@@ -103,6 +103,37 @@ cr_predict_grid <- function(fit, data, tt, n_grid, log_x) {
     seq(0, hi, length.out = n_grid)
   }
 
+  if (inherits(fit, "cr_drc_ma")) {
+    require_engine("drc")
+    nd <- data.frame(grid)
+    names(nd) <- tt$x_var
+    # The averaged curve and its band are formed pointwise: at each
+    # concentration the candidate predictions are combined by the same Buckland
+    # rule used for the estimates, so the band widens where the candidates
+    # disagree about the shape of the curve.
+    preds <- vapply(fit$fits, function(f) {
+      as.numeric(cr_drc_predict(f, nd, se.fit = TRUE)[, 1])
+    }, numeric(length(grid)))
+    ses <- vapply(fit$fits, function(f) {
+      as.numeric(cr_drc_predict(f, nd, se.fit = TRUE)[, 2])
+    }, numeric(length(grid)))
+    w <- fit$weights[colnames(preds)]
+    comb <- t(vapply(seq_along(grid), function(i) {
+      buckland_combine(preds[i, ], ses[i, ], w)[c("estimate", "se")]
+    }, numeric(2)))
+    z <- stats::qnorm(0.975)
+    out <- data.frame(
+      .x = grid, .fit = comb[, 1],
+      .lower = comb[, 1] - z * comb[, 2],
+      .upper = comb[, 1] + z * comb[, 2]
+    )
+    attr(out, "interval_label") <- sprintf(
+      "Model-averaged curve over %d candidates with 95%% Buckland interval (drc)",
+      length(fit$fits)
+    )
+    return(out)
+  }
+
   if (inherits(fit, "drc")) {
     require_engine("drc")
     nd <- data.frame(grid)
@@ -151,22 +182,44 @@ bnec_pred_frame <- function(fit) {
   as.data.frame(pd)
 }
 
-#' Model weights from a bayesnec fit
+#' Model weights from an averaged fit of either engine
 #'
-#' Returns the stacking weights as a two-column data frame. The weights are
-#' stored in `mod_stats$wi`, which is an unnamed weights object rather than a
-#' named vector, so the model names have to be taken from the `model` column
-#' beside it.
+#' Returns the weights that combined the candidate models, in one format for
+#' both engines: `bayesnec` stacking weights and `drc` Akaike weights.
 #'
-#' @param fit A `bayesnecfit` or `bayesmanecfit` object.
-#' @return A data frame with columns `model` and `weight`, ordered by
-#'   decreasing weight. A single-model fit returns one row with weight 1.
+#' The two are not the same quantity. Stacking weights are chosen to optimise
+#' the predictive performance of the combination. Akaike weights are a
+#' transformation of the relative AIC of each model on its own. Both say how
+#' much each candidate contributed, and neither is a probability that a model is
+#' correct.
+#'
+#' @param fit A `bayesnecfit`, `bayesmanecfit` or `cr_drc_ma` object.
+#' @return A data frame whose first two columns are `model` and `weight`,
+#'   ordered by decreasing weight. A single-model fit returns one row with
+#'   weight 1.
 #' @export
 cr_model_weights <- function(fit) {
-  require_engine("bayesnec")
-  if (!inherits(fit, "bayesmanecfit")) {
-    return(data.frame(model = fit$model, weight = 1, stringsAsFactors = FALSE))
-  }
+  UseMethod("cr_model_weights")
+}
+
+#' @export
+cr_model_weights.default <- function(fit) {
+  stop("No cr_model_weights() method for an object of class ",
+    paste(class(fit), collapse = "/"), ".",
+    call. = FALSE
+  )
+}
+
+#' @export
+cr_model_weights.bayesnecfit <- function(fit) {
+  data.frame(model = fit$model, weight = 1, stringsAsFactors = FALSE)
+}
+
+# The weights live in mod_stats$wi, which is an unnamed weights object rather
+# than a named vector, so the model names have to be taken from the `model`
+# column beside it.
+#' @export
+cr_model_weights.bayesmanecfit <- function(fit) {
   out <- data.frame(
     model = fit$mod_stats$model,
     weight = as.numeric(fit$mod_stats$wi),

@@ -158,3 +158,87 @@ from actual fits, so the branches are tested without a Stan toolchain and
 cannot regress unnoticed on a machine that cannot sample.
 
 ---
+
+## Session: project-scaffold (continued)
+Date: 2026-08-31
+Model: Claude Opus 5 (claude-opus-5[1m])
+
+**User:** can you do step 2, and also render the abyesnec documents - that will
+need to be done on wsl, with cmdstanr. wsl should be able to render qmd now
+
+**Claude:** Rendering the full drc set exposed two defects in the `drc` engine
+that had not been reached before, both fixed with regression tests covering all
+fourteen test types.
+
+1. **`drc` reports an unusable log-likelihood for `type = "Poisson"`.** On
+   `daphnia_reproduction` it returns +21538 where the Poisson log-likelihood of
+   the same fit is -269.25, giving an AIC of -42942. Parameter estimates are
+   unaffected, but model selection for both count endpoints was being made on
+   meaningless numbers. The likelihood is now recomputed from the fitted means
+   for count responses; drc's value is retained for the continuous and binomial
+   types, where it was checked against a direct calculation and agrees.
+
+2. **`drc::modelFit()` returns NULL rather than raising an error** for Poisson
+   fits. Subscripting the absent p-value produced a zero-length value that
+   reached `data.frame()` as a row-count error and aborted the render. Both the
+   NULL and error cases are now reduced to NA.
+
+**Registry change.** The default mean function for the binomial test types was
+`LL.2`, which fixes the upper asymptote at 1 and so assumes every control
+individual survives. Measured on the example data, wherever the control
+proportion is below 1, `LL.3` beats `LL.2` by between 90 and 1900 AIC units
+(`larval_development` 2021.3 against 120.2; `plant_emergence` 447.4 against
+102.3). The default is now `LL.3` and the candidate set leads with
+three-parameter forms; `LL.2` is retained because it wins where the control
+response really is 100 per cent.
+
+**bayesnec rendering.** WSL Debian has Quarto 1.10.18 and CmdStan 2.39.0, so the
+documents render there. A `backend` parameter was added to the bayesnec
+template and recorded in the provenance table, because rstan and cmdstanr are
+different implementations of the same sampler and do not reproduce each other
+draw for draw from one seed. The cmdstanr backend also runs faster: 9.4 minutes
+against about 16 for `algal_growth`. All fourteen documents rendered without
+failure, 118 minutes for the last thirteen, and every one reports `N(S)EC`,
+confirming the labelling fix across the whole registry.
+
+---
+
+**User:** Can we add model averaging to the drc workflow?
+
+**Claude:** Added `fit_cr_drc_ma()`, which fits every candidate and combines
+them by Akaike weights with Buckland unconditional intervals, and made it the
+default in the drc workflow so that both engines now report intervals including
+the uncertainty in the choice of curve form.
+
+`drc::maED()` was evaluated first and rejected: it calls `modelFit()`
+internally and therefore fails outright on `type = "Poisson"` fits, which would
+have left both count endpoints without model averaging. Implementing the
+combination directly also allows the corrected log-likelihood to be used for
+the weights, and keeps ECx on the control-referenced scale that the
+single-model path reports.
+
+The implementation was validated against `drc::maED()` on the three test types
+where maED works. Estimates agree to within 2 per cent and standard errors to
+within 10 per cent. The residual difference was traced rather than accepted:
+the Akaike weights are identical to five decimal places, drc's AIC being
+exactly two units higher because it counts the Gaussian scale parameter, which
+cancels in the weights. The remaining difference is maED refitting each
+candidate from the supplied fit and converging to slightly different parameter
+values. The parameter count used here was then aligned with drc's convention so
+that the AIC values reported are directly comparable with drc's own.
+
+Behaviour on the example data is as intended. Where one candidate dominates,
+averaging changes nothing: on `bioluminescence_inhibition`, `BC.4` takes 72 per
+cent of the weight and the averaged EC50 differs in the third significant
+figure. Where candidates disagree, the interval widens: on
+`daphnia_reproduction`, with weight spread across three mean functions, the
+model-averaged EC50 interval is about 60 per cent wider than the best single
+model's.
+
+Supporting changes: `cr_ecx()` gained an `se` column across both engines;
+`cr_model_weights()` became an S3 generic with methods for both engines;
+`plot_cr_fit()` gained a branch drawing the averaged curve with a pointwise
+Buckland band. Eleven tests were added, covering the weight arithmetic, the
+Buckland reduction cases, all fourteen test types, and the maED cross-check.
+
+---

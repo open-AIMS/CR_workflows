@@ -88,6 +88,7 @@ cr_ecx.drc <- function(fit, ecx_val = NULL, test_type = NULL, level = 0.95,
     return(data.frame(
       engine = "drc", estimate_type = "ECx", level = ecx_val,
       estimate = as.numeric(est[, "Estimate"]),
+      se = as.numeric(est[, "Std. Error"]),
       lower = as.numeric(est[, "Lower"]),
       upper = as.numeric(est[, "Upper"]),
       interval = sprintf(
@@ -106,7 +107,7 @@ cr_ecx.drc <- function(fit, ecx_val = NULL, test_type = NULL, level = 0.95,
   data.frame(
     engine = "drc", estimate_type = "ECx", level = ecx_val,
     estimate = cr_solve_ecx(fit, test_type, ecx_val),
-    lower = NA_real_, upper = NA_real_,
+    se = NA_real_, lower = NA_real_, upper = NA_real_,
     interval = sprintf("no interval available, referenced to the fitted %s", ref_label),
     stringsAsFactors = FALSE
   )
@@ -196,7 +197,11 @@ bnec_ecx_table <- function(fit, ecx_val, test_type, level, ...) {
     e <- bayesnec::ecx(fit, ecx_val = v, prob_vals = c(0.5, (1 - level) / 2, 1 - (1 - level) / 2), ...)
     data.frame(
       engine = "bayesnec", estimate_type = "ECx", level = v,
-      estimate = unname(e[1]), lower = unname(e[2]), upper = unname(e[3]),
+      estimate = unname(e[1]),
+      # A credible interval is not built from a standard error; the column
+      # exists so that both engines return the same schema.
+      se = NA_real_,
+      lower = unname(e[2]), upper = unname(e[3]),
       interval = sprintf("%.0f%% credible interval", 100 * level),
       stringsAsFactors = FALSE
     )
@@ -255,7 +260,8 @@ cr_nec <- function(fit, type = c("auto", "nec", "nsec"), level = 0.95, ...) {
   }
   data.frame(
     engine = "bayesnec", estimate_type = label, level = NA_real_,
-    estimate = unname(e[1]), lower = unname(e[2]), upper = unname(e[3]),
+    estimate = unname(e[1]), se = NA_real_,
+    lower = unname(e[2]), upper = unname(e[3]),
     interval = sprintf("%.0f%% credible interval", 100 * level),
     stringsAsFactors = FALSE
   )

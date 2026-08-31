@@ -43,13 +43,25 @@ write_cr_outputs <- function(fit, plot, results, stem,
 #'
 #' @param seed The seed used for the analysis.
 #' @param engine Which fitting engine was used.
+#' @param backend For the bayesnec engine, the Stan interface used, either
+#'   `"rstan"` or `"cmdstanr"`. Recorded because the two are different
+#'   implementations of the same sampler and do not reproduce each other draw
+#'   for draw from one seed.
 #' @return A one-row data frame.
 #' @export
 #' @examples
 #' cr_session_record(seed = 42, engine = "drc")
-cr_session_record <- function(seed = NA_integer_, engine = c("bayesnec", "drc")) {
+cr_session_record <- function(seed = NA_integer_, engine = c("bayesnec", "drc"),
+                              backend = NULL) {
   engine <- match.arg(engine)
-  pkgs <- c("crworkflows", engine, if (engine == "bayesnec") c("brms", "rstan"))
+  # Both Stan interfaces are recorded when either is in use: rstan and cmdstanr
+  # are different implementations of the same sampler and do not reproduce each
+  # other draw for draw from one seed, so the version of the one actually used
+  # has to be recoverable from the report.
+  pkgs <- c(
+    "crworkflows", engine,
+    if (engine == "bayesnec") c("brms", "rstan", "cmdstanr")
+  )
   vers <- vapply(pkgs, function(p) {
     if (requireNamespace(p, quietly = TRUE)) {
       as.character(utils::packageVersion(p))
@@ -61,9 +73,15 @@ cr_session_record <- function(seed = NA_integer_, engine = c("bayesnec", "drc"))
     r_version = R.version.string,
     platform = R.version$platform,
     engine = engine,
+    backend = backend %||% NA_character_,
     seed = seed,
     date = format(Sys.Date()),
     stringsAsFactors = FALSE
   )
+  if (engine == "bayesnec" && identical(backend, "cmdstanr")) {
+    out$cmdstan_version <- tryCatch(as.character(cmdstanr::cmdstan_version()),
+      error = function(e) NA_character_
+    )
+  }
   cbind(out, as.data.frame(t(vers), stringsAsFactors = FALSE))
 }

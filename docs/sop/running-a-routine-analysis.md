@@ -58,11 +58,13 @@ common ones and what they mean:
 
 ## 4. Check the fit before the estimates
 
-**For a `drc` analysis**, read the candidate comparison table and the residual
-plot. AIC ranks the candidates, but a lack-of-fit p-value below 0.05 means the
-selected curve does not describe the data regardless of its rank, and must be
-commented on. Systematic curvature or a fan shape in the residuals means the
-mean function or the error structure is wrong.
+**For a `drc` analysis**, read the candidate comparison table, the weights and
+the residual plot. A lack-of-fit p-value below 0.05 means that candidate does
+not describe the data regardless of its AIC rank, and must be commented on.
+Systematic curvature or a fan shape in the residuals means the mean function or
+the error structure is wrong. Where the weight is spread across candidates with
+different shapes, the data do not determine the curve form; the model-averaged
+interval already reflects that, and it belongs in the report.
 
 **For a `bayesnec` analysis**, read the convergence summary first. An R-hat
 above 1.05, or a bulk effective sample size below about 400, means the chains
@@ -93,9 +95,10 @@ kilobytes and can always be kept.
 ## 6. Reporting the estimates
 
 Report the interval with the label the results table gives it. The `bayesnec`
-interval is a credible interval and the `drc` interval is a delta-method
-confidence interval; they are not interchangeable and must not be pooled into
-one column without that label.
+interval is a credible interval; the `drc` interval is a Buckland
+model-averaged interval, or a delta-method confidence interval where averaging
+was turned off. They are not interchangeable and must not be pooled into one
+column without that label.
 
 Report the `estimate_type` alongside any no-effect concentration, and use its
 wording. `NEC` is a threshold parameter estimated by the model. `NSEC` is

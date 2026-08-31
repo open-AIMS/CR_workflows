@@ -46,7 +46,7 @@ Endpoint: mobile individuals, recorded in column `mobile` out of `total`. Concen
 | Concentration range | 0.3125 to 10 mg/L |
 | bayesnec family | `binomial(link = "identity")` |
 | bayesnec candidate models | `decline` |
-| drc default mean function | `LL.2`, `type = "binomial"` |
+| drc default mean function | `LL.3`, `type = "binomial"` |
 | Hormesis admitted | no |
 | ECx reported | 10, 50 |
 
@@ -66,7 +66,7 @@ Endpoint: surviving larvae, recorded in column `alive` out of `total`. Concentra
 | Concentration range | 2 to 64 mg/L |
 | bayesnec family | `binomial(link = "identity")` |
 | bayesnec candidate models | `decline` |
-| drc default mean function | `LL.2`, `type = "binomial"` |
+| drc default mean function | `LL.3`, `type = "binomial"` |
 | Hormesis admitted | no |
 | ECx reported | 10, 20, 50 |
 
@@ -108,7 +108,7 @@ Endpoint: fertilised ova, recorded in column `fertilised` out of `total`. Concen
 | Concentration range | 10 to 320 ug/L |
 | bayesnec family | `binomial(link = "identity")` |
 | bayesnec candidate models | `decline` |
-| drc default mean function | `LL.2`, `type = "binomial"` |
+| drc default mean function | `LL.3`, `type = "binomial"` |
 | Hormesis admitted | no |
 | ECx reported | 10, 20, 50 |
 
@@ -128,7 +128,7 @@ Endpoint: proportion normal larvae, recorded in column `normal` out of `total`. 
 | Concentration range | 3.125 to 100 ug/L |
 | bayesnec family | `binomial(link = "identity")` |
 | bayesnec candidate models | `decline` |
-| drc default mean function | `LL.2`, `type = "binomial"` |
+| drc default mean function | `LL.3`, `type = "binomial"` |
 | Hormesis admitted | no |
 | ECx reported | 10, 20, 50 |
 
@@ -170,7 +170,7 @@ Endpoint: surviving adults, recorded in column `alive` out of `total`. Concentra
 | Concentration range | 52.92215 to 1000 mg/kg dry soil |
 | bayesnec family | `binomial(link = "identity")` |
 | bayesnec candidate models | `decline` |
-| drc default mean function | `LL.2`, `type = "binomial"` |
+| drc default mean function | `LL.3`, `type = "binomial"` |
 | Hormesis admitted | no |
 | ECx reported | 10, 50 |
 
@@ -210,7 +210,7 @@ Endpoint: emerged seedlings, recorded in column `emerged` out of `sown`. Concent
 | Concentration range | 15.625 to 500 mg/kg dry soil |
 | bayesnec family | `binomial(link = "identity")` |
 | bayesnec candidate models | `decline` |
-| drc default mean function | `LL.2`, `type = "binomial"` |
+| drc default mean function | `LL.3`, `type = "binomial"` |
 | Hormesis admitted | no |
 | ECx reported | 10, 20, 50 |
 
@@ -252,7 +252,7 @@ Endpoint: surviving amphipods, recorded in column `alive` out of `total`. Concen
 | Concentration range | 25 to 800 mg/kg dry sediment |
 | bayesnec family | `binomial(link = "identity")` |
 | bayesnec candidate models | `decline` |
-| drc default mean function | `LL.2`, `type = "binomial"` |
+| drc default mean function | `LL.3`, `type = "binomial"` |
 | Hormesis admitted | no |
 | ECx reported | 10, 50 |
 

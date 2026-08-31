@@ -4,12 +4,21 @@
 \alias{cr_session_record}
 \title{Record the software versions used for an analysis}
 \usage{
-cr_session_record(seed = NA_integer_, engine = c("bayesnec", "drc"))
+cr_session_record(
+  seed = NA_integer_,
+  engine = c("bayesnec", "drc"),
+  backend = NULL
+)
 }
 \arguments{
 \item{seed}{The seed used for the analysis.}
 
 \item{engine}{Which fitting engine was used.}
+
+\item{backend}{For the bayesnec engine, the Stan interface used, either
+\code{"rstan"} or \code{"cmdstanr"}. Recorded because the two are different
+implementations of the same sampler and do not reproduce each other draw
+for draw from one seed.}
 }
 \value{
 A one-row data frame.

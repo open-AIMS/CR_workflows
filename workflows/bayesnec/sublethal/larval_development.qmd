@@ -16,6 +16,7 @@ params:
   iter: 4000
   warmup: 2000
   model: null
+  backend: null
   save_fit: true
 execute:
   warning: true
@@ -113,9 +114,16 @@ family and its link come from the test-type registry: the link is always the
 identity, which keeps `top`, `bot` and `nec` on the scale of the measured
 response.
 
+`params$backend` selects the Stan interface. Leaving it unset uses the `brms`
+default, `rstan`. Setting it to `"cmdstanr"` uses CmdStan instead, which is the
+route where the installed R has no matching Rtools. The two are different
+implementations of the same sampler and are not guaranteed to reproduce each
+other draw for draw from the same seed, so the backend is recorded with the
+other provenance below.
+
 ```{r fit}
 #| results: hide
-fit <- fit_cr_bayesnec(
+fit_args <- list(
   cr_data, params$test_type,
   model = params$model,
   validate = FALSE,
@@ -125,6 +133,8 @@ fit <- fit_cr_bayesnec(
   warmup = params$warmup,
   refresh = 0
 )
+if (!is.null(params$backend)) fit_args$backend <- params$backend
+fit <- do.call(fit_cr_bayesnec, fit_args)
 ```
 
 ### Convergence
@@ -194,7 +204,8 @@ knitr::kable(data.frame(output = names(paths), path = unname(paths)))
 ```
 
 ```{r provenance}
-knitr::kable(t(cr_session_record(seed = params$seed, engine = "bayesnec")),
+knitr::kable(t(cr_session_record(seed = params$seed, engine = "bayesnec",
+                                 backend = params$backend)),
   col.names = "Value",
   caption = "Software versions and seed. All of these are needed to reproduce the fit; the seed alone is not sufficient."
 )

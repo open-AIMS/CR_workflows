@@ -12,7 +12,7 @@ params:
   data_file: null
   test_type: "larval_development"
   seed: 20260831
-  compare_models: true
+  average: true
   fct: null
   save_fit: true
 execute:
@@ -43,9 +43,9 @@ table and the archived model fit that a report requires. It is intended to be
 run once per sample. Change `params$sample_id` and `params$data_file` at the top
 of the file; nothing below needs editing for a routine analysis.
 
-The `drc` engine fits one mean function chosen from a small candidate set. That
-choice is a decision made from the data, so it is shown in full below rather
-than applied silently.
+The `drc` engine fits a small set of candidate mean functions and, by default,
+combines them by their Akaike weights. How the candidates were used, and how
+much each contributed, is shown in full below rather than applied silently.
 
 ## Test and sample
 
@@ -102,62 +102,82 @@ knitr::kable(
 plot_cr_data(cr_data, params$test_type)
 ```
 
-## Choice of mean function
+## Candidate mean functions
 
-Each candidate is fitted and compared. AIC ranks the candidates; the lack-of-fit
-p-value tests the selected curve against a model with a separate mean at each
-concentration, and a small value means the curve does not describe the data
-regardless of how it ranks against the other candidates.
-
-Selection is by AIC, but a fit with a lack-of-fit p-value below 0.05 should not
-be reported without comment even when it ranks first.
+Each candidate is fitted and compared. AIC ranks them; the lack-of-fit p-value
+tests a curve against a model with a separate mean at each concentration, and a
+small value means the curve does not describe the data regardless of how it
+ranks against the others. A candidate with a lack-of-fit p-value below 0.05
+should not be reported without comment even when it ranks first.
 
 ```{r compare}
-comparison <- if (params$compare_models) {
-  compare_drc_models(cr_data, params$test_type)
-} else {
-  NULL
-}
-if (!is.null(comparison)) {
-  knitr::kable(comparison, digits = 4, row.names = FALSE,
-    caption = "Candidate mean functions, ordered by AIC")
-}
-```
-
-```{r select}
-selected <- if (!is.null(params$fct)) {
-  params$fct
-} else if (!is.null(comparison)) {
-  comparison$fct[which(comparison$converged)][1]
-} else {
-  tt$drc_fct
-}
-cat("Mean function used:", selected, "\n")
+comparison <- compare_drc_models(cr_data, params$test_type)
+knitr::kable(comparison, digits = 4, row.names = FALSE,
+  caption = "Candidate mean functions, ordered by AIC")
 ```
 
 ## Model fitting
 
+`params$average` controls how the candidates are used.
+
+When it is `true`, which is the default, the candidates are combined by their
+Akaike weights rather than one being chosen. The reported interval then includes
+the uncertainty in the choice of curve form, instead of being conditional on one
+function having been picked correctly. Where one candidate carries almost all
+the weight the averaged result is indistinguishable from that candidate alone;
+where the candidates disagree, the interval is wider, and that widening is the
+information averaging adds. This matches what the `bayesnec` workflow does with
+stacking weights, so the two engines report comparable quantities.
+
+When it is `false`, the single best candidate by AIC is fitted and reported, and
+the interval is conditional on that choice.
+
 ```{r fit}
-fit <- fit_cr_drc(
-  cr_data, params$test_type,
-  fct = drc_fct(selected),
-  validate = FALSE
-)
-summary(fit)
+selected <- if (is.null(params$fct)) {
+  comparison$fct[which(comparison$converged)][1]
+} else {
+  params$fct
+}
+
+fit <- if (params$average) {
+  fit_cr_drc_ma(cr_data, params$test_type, validate = FALSE)
+} else {
+  fit_cr_drc(cr_data, params$test_type, fct = drc_fct(selected), validate = FALSE)
+}
+```
+
+```{r weights}
+if (inherits(fit, "cr_drc_ma")) {
+  knitr::kable(cr_model_weights(fit), digits = 4, row.names = FALSE,
+    caption = "Akaike weights. These say how much each candidate contributed to the averaged result. They are not probabilities that a model is correct.")
+} else {
+  cat("Single mean function used:", selected, "\n\n")
+  summary(fit)
+}
 ```
 
 ### Residual check
 
 Systematic curvature in the residuals means the mean function is wrong, which
-AIC alone will not reveal when every candidate is wrong in the same way.
+AIC alone will not reveal when every candidate is wrong in the same way. For an
+averaged fit the residuals of the highest-weighted candidate are shown, since
+the averaged curve is a combination rather than a single fitted model.
 
 ```{r residuals}
 #| fig-cap: "Residuals against fitted values. A trend, or a fan shape, indicates that the mean function or the error structure is misspecified."
-resid_df <- data.frame(fitted = fitted(fit), residual = residuals(fit))
+resid_fit <- if (inherits(fit, "cr_drc_ma")) fit$fits[[fit$comparison$model[1]]] else fit
+resid_df <- data.frame(fitted = fitted(resid_fit), residual = residuals(resid_fit))
 ggplot(resid_df, aes(fitted, residual)) +
   geom_hline(yintercept = 0, linetype = 2) +
   geom_point(size = 2, alpha = 0.8) +
-  labs(x = "Fitted value", y = "Residual") +
+  labs(
+    x = "Fitted value", y = "Residual",
+    subtitle = if (inherits(fit, "cr_drc_ma")) {
+      paste("Highest-weighted candidate:", fit$comparison$model[1])
+    } else {
+      NULL
+    }
+  ) +
   theme_bw()
 ```
 
@@ -167,6 +187,12 @@ ECx values are referenced to the fitted control response, which is the
 convention in ecotoxicological reporting and matches what the `bayesnec`
 workflow reports, so the two engines answer the same question.
 
+Where the candidates were averaged, the interval is a Buckland interval: each
+candidate contributes its own uncertainty plus its distance from the averaged
+value, so disagreement between curve forms widens it. Where a single candidate
+was fitted, the interval is a delta-method confidence interval conditional on
+that choice. The `interval` column of the results table records which was used.
+
 ```{r results}
 results <- cr_results_table(
   fit, params$test_type,
@@ -174,8 +200,7 @@ results <- cr_results_table(
 )
 knitr::kable(results[, c("estimate_type", "level", "estimate", "lower", "upper")],
   digits = 4,
-  caption = paste0("Estimates in ", tt$conc_units,
-                   ". Intervals are 95% delta-method confidence intervals.")
+  caption = paste0("Estimates in ", tt$conc_units, ". ", results$interval[1])
 )
 ```
 

@@ -88,3 +88,64 @@ test_that("binomial data are fitted on the proportion scale with trials as weigh
   expect_equal(frame$.y, fish_larval_survival$alive / fish_larval_survival$total)
   expect_equal(frame$.w, fish_larval_survival$total)
 })
+
+test_that("compare_drc_models() returns a usable table for every test type", {
+  # The original tests covered only algal_growth and the hormetic data, so a
+  # failure confined to the count test types went unnoticed until a workflow was
+  # rendered. Every test type is exercised here.
+  for (id in cr_test_types()$id) {
+    d <- get(id, envir = asNamespace("crworkflows"))
+    # drc emits "NaNs produced" from its optimiser while trying parameter values
+    # that put the mean function out of domain. The fits still converge, which
+    # is asserted below; the warnings are muffled only to keep the suite output
+    # readable. They are left visible in the package itself.
+    cmp <- suppressWarnings(compare_drc_models(d, id))
+    expect_s3_class(cmp, "data.frame")
+    expect_equal(nrow(cmp), length(drc_candidates(id)), info = id)
+    expect_true(any(cmp$converged), info = paste(id, "no candidate converged"))
+
+    ok <- cmp[cmp$converged, , drop = FALSE]
+    expect_true(all(is.finite(ok$logLik)), info = paste(id, "non-finite logLik"))
+    expect_true(all(is.finite(ok$AIC)), info = paste(id, "non-finite AIC"))
+    expect_true(!is.unsorted(cmp$AIC, na.rm = TRUE), info = paste(id, "not AIC-ordered"))
+  }
+})
+
+test_that("the log-likelihood is the one implied by the response type", {
+  # drc reports a positive log-likelihood of the wrong magnitude for
+  # type = "Poisson", so the count types are recomputed. This checks the
+  # recomputation against a direct calculation, and checks that the other types
+  # still agree with drc's own value.
+  count_fit <- fit_cr_drc(daphnia_reproduction, "daphnia_reproduction", validate = FALSE)
+  mu <- stats::fitted(count_fit)
+  y <- daphnia_reproduction$offspring
+  expect_equal(
+    crworkflows:::cr_drc_loglik(count_fit, "daphnia_reproduction"),
+    sum(stats::dpois(y, mu, log = TRUE)),
+    tolerance = 1e-6
+  )
+  # The guard that matters: a count log-likelihood must be negative.
+  expect_lt(crworkflows:::cr_drc_loglik(count_fit, "daphnia_reproduction"), 0)
+
+  for (id in c("algal_growth", "fish_larval_survival")) {
+    d <- get(id, envir = asNamespace("crworkflows"))
+    f <- fit_cr_drc(d, id, validate = FALSE)
+    expect_equal(
+      crworkflows:::cr_drc_loglik(f, id),
+      as.numeric(stats::logLik(f)),
+      info = id
+    )
+  }
+})
+
+test_that("a missing lack-of-fit test becomes NA rather than an error", {
+  # drc::modelFit() returns NULL for Poisson fits; subscripting it gives a
+  # zero-length value that crashes data.frame() rather than yielding NA.
+  count_fit <- fit_cr_drc(daphnia_reproduction, "daphnia_reproduction", validate = FALSE)
+  lof <- crworkflows:::drc_lack_of_fit(count_fit)
+  expect_length(lof, 1L)
+  expect_true(is.na(lof) || is.finite(lof))
+
+  binom_fit <- fit_cr_drc(fish_larval_survival, "fish_larval_survival", validate = FALSE)
+  expect_length(crworkflows:::drc_lack_of_fit(binom_fit), 1L)
+})

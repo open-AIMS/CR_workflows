@@ -18,9 +18,14 @@ drc_candidates <- function(test_type) {
     # log-logistic pair is retained so that a non-hormetic fit can win.
     c("BC.4", "BC.5", "LL.3", "LL.4")
   } else if (tt$response_type == "binomial_trials") {
-    # Two-parameter forms fix the upper and lower asymptotes at 1 and 0, which
-    # is the usual assumption for a survival or success endpoint.
-    c("LL.2", "LL.3", "W1.2", "W2.2")
+    # Three-parameter forms lead, because they estimate the control response
+    # rather than fixing it at 1. The two-parameter forms assume every control
+    # individual survives or succeeds, which no guideline requires and few tests
+    # achieve: on the shipped example data, wherever the control proportion is
+    # below 1, LL.3 beats LL.2 by between 90 and 1900 AIC units. LL.2 is
+    # retained because it wins where the control response really is 100 per
+    # cent, and it is the more parsimonious model in that case.
+    c("LL.3", "LL.2", "W1.3", "W2.3")
   } else {
     c("LL.3", "LL.4", "W1.3", "W2.3")
   }
@@ -97,15 +102,15 @@ compare_drc_models <- function(data, test_type, validate = FALSE, ...) {
         n_par = NA_integer_, lof_p = NA_real_, stringsAsFactors = FALSE
       ))
     }
-    # modelFit() fails for some designs (for example a single replicate at a
-    # concentration), which is not a reason to drop the candidate.
-    lof <- tryCatch(drc::modelFit(fit)[["p value"]][2], error = function(e) NA_real_)
+    lof <- drc_lack_of_fit(fit)
+    ll <- cr_drc_loglik(fit, test_type)
+    k <- cr_drc_npar(fit, test_type)
     data.frame(
       fct = nm, converged = TRUE,
-      logLik = as.numeric(stats::logLik(fit)),
-      AIC = stats::AIC(fit),
-      n_par = length(stats::coef(fit)),
-      lof_p = as.numeric(lof), stringsAsFactors = FALSE
+      logLik = ll,
+      AIC = -2 * ll + 2 * k,
+      n_par = k,
+      lof_p = lof, stringsAsFactors = FALSE
     )
   })
   out <- do.call(rbind, rows)
@@ -128,4 +133,52 @@ compare_drc_models <- function(data, test_type, validate = FALSE, ...) {
 drc_fct <- function(name) {
   require_engine("drc")
   eval(str2lang(paste0("drc::", name, "()")))
+}
+
+# drc's own log-likelihood cannot be used for the count test types. For
+# type = "Poisson" it returns a value of the wrong sign and magnitude: on
+# daphnia_reproduction it reports +21538 where the Poisson log-likelihood of the
+# same fit is -269.25, giving an AIC of -42942. The parameter estimates are
+# unaffected -- the fitted EC50 is sensible -- but an AIC built from that number
+# cannot rank candidates. The likelihood is therefore recomputed from the fitted
+# means for count responses. drc's value is used for the continuous and binomial
+# types, where it was checked against a direct calculation and agrees.
+cr_drc_loglik <- function(fit, test_type) {
+  tt <- cr_test_type(test_type)
+  if (tt$response_type != "count") {
+    return(as.numeric(stats::logLik(fit)))
+  }
+  mu <- pmax(stats::fitted(fit), .Machine$double.eps)
+  # The response is recovered from the fit rather than read from a data slot,
+  # whose name has varied between drc versions.
+  y <- mu + stats::residuals(fit)
+  sum(stats::dpois(round(y), mu, log = TRUE))
+}
+
+# Number of estimated parameters, for AIC. A Gaussian fit estimates a scale
+# parameter in addition to the mean-function coefficients; binomial and Poisson
+# fits do not. drc's own AIC counts the scale parameter the same way, so this
+# keeps the AIC reported here on the same footing as drc's, rather than two
+# units below it. Akaike weights are unaffected either way, because within one
+# candidate set the offset is the same for every model and cancels.
+cr_drc_npar <- function(fit, test_type) {
+  tt <- cr_test_type(test_type)
+  k <- length(stats::coef(fit))
+  if (tt$response_type %in% c("binomial_trials", "count")) k else k + 1L
+}
+
+# drc::modelFit() returns NULL rather than raising an error for some fits,
+# including every type = "Poisson" fit. Subscripting the absent p-value then
+# gives a zero-length value, which reaches data.frame() as a "differing number
+# of rows" error rather than as a missing lack-of-fit test. Both the NULL and
+# the error case are reduced to NA here.
+drc_lack_of_fit <- function(fit) {
+  tryCatch(
+    {
+      mf <- drc::modelFit(fit)
+      p <- if (is.null(mf)) NULL else mf[["p value"]]
+      if (length(p) >= 2L) as.numeric(p[[2]]) else NA_real_
+    },
+    error = function(e) NA_real_
+  )
 }
