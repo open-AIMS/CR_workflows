@@ -197,3 +197,41 @@ test_that("a drc fit with no recorded test type is named as the problem", {
   expect_error(cr_ecx(bare), "does not record a test type")
   expect_silent(invisible(cr_ecx(bare, test_type = "algal_growth")))
 })
+
+test_that("cr_drc_dispersion() recovers the over-dispersion the data were given", {
+  # The count example data are generated from a negative binomial, so a Poisson
+  # fit must report a dispersion well above one. This is the quantity by whose
+  # square root the drc intervals for those test types are too narrow.
+  for (id in c("daphnia_reproduction", "earthworm_reproduction")) {
+    d <- get(id, envir = asNamespace("crworkflows"))
+    fit <- suppressWarnings(fit_cr_drc(d, id, validate = FALSE))
+    disp <- cr_drc_dispersion(fit)
+    expect_gt(disp, 2)
+    expect_lt(disp, 6)
+  }
+
+  # The binomial test types have no such extra variation by construction, so
+  # theirs must sit near one.
+  for (id in c("fish_larval_survival", "plant_emergence")) {
+    d <- get(id, envir = asNamespace("crworkflows"))
+    fit <- suppressWarnings(fit_cr_drc(d, id, validate = FALSE))
+    disp <- cr_drc_dispersion(fit)
+    expect_gt(disp, 0.25)
+    expect_lt(disp, 2.5)
+  }
+
+  # A Gaussian fit estimates its own scale, so the ratio says nothing and the
+  # check reports NA rather than a number that would always be one.
+  for (id in c("algal_growth", "coral_bleaching")) {
+    d <- get(id, envir = asNamespace("crworkflows"))
+    fit <- suppressWarnings(fit_cr_drc(d, id, validate = FALSE))
+    expect_true(is.na(cr_drc_dispersion(fit)))
+  }
+})
+
+test_that("cr_drc_dispersion() names a missing test type", {
+  d <- crworkflows:::drc_frame(daphnia_reproduction, cr_test_type("daphnia_reproduction"))
+  bare <- drc::drm(.y ~ conc, data = d, fct = drc::LL.3(), type = "Poisson")
+  expect_error(cr_drc_dispersion(bare), "does not record a test type")
+  expect_gt(cr_drc_dispersion(bare, "daphnia_reproduction"), 2)
+})

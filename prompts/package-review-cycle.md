@@ -157,3 +157,43 @@ directory, removed when the session ends. The uploaded name is supplied by the
 client, so it is reduced to its base name before a path is built from it.
 
 ---
+## Session: package review cycle (continued)
+Date: 2026-09-01
+Model: Claude Opus 5 (claude-opus-5[1m])
+
+### The drc intervals for the count test types are conditional on equidispersion
+
+`drc` fits the two count test types with `type = "Poisson"`, which fixes the
+variance equal to the mean. `bayesnec` fits them with a negative binomial, which
+estimates it. Nothing in the package or its documentation recorded that
+difference, although `docs/engine-comparison.md` exists to record exactly this
+kind of divergence and already covered the Gaussian against Gamma case for the
+continuous endpoints.
+
+The difference is not small on the shipped data. Pearson dispersion of the
+`drc` fit was measured as 2.77 on `daphnia_reproduction` and 3.32 on
+`earthworm_reproduction`, against 0.63 to 1.60 for the binomial test types,
+which is what the generator implies: those two datasets are simulated from a
+negative binomial of size 18 and 12. The point estimates are unaffected, but the
+standard errors and every interval built from them are too narrow by roughly the
+square root of the dispersion. On `daphnia_reproduction` the EC50 interval is
+0.309 to 0.391, a width of 0.082, where the dispersion-corrected width would be
+0.137.
+
+`cr_drc_dispersion()` was added to report the quantity, and the `drc` workflow
+now prints it beside the residual plot with a statement of what it means for the
+interval. It reports rather than corrects: rescaling an interval is a change to
+the model and belongs in the model specification, which is the author's
+decision, not something a diagnostic should apply silently. Whether the registry
+should fit the count endpoints with a quasi-Poisson or a different error
+structure is left open and recorded in `docs/engine-comparison.md`.
+
+The dispersion is computed as the mean squared Pearson residual against the
+variance the fitted likelihood assumes: the mean for a Poisson fit, and
+`p(1 - p)/n` for a binomial fit, which is the variance of the fitted proportion
+given that `drc` fits binomial data on the proportion scale with the trials as
+weights. It returns `NA` for the continuous test types, whose Gaussian fit
+estimates its own scale, so the ratio would be one by construction and would say
+nothing.
+
+---

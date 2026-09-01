@@ -86,12 +86,40 @@ interval conditional on the selected function being the right one.
 **The likelihood may differ.** `bayesnec` uses the family recorded in the
 registry: Gamma for positive continuous responses, binomial for counts out of
 trials, negative binomial for counts, Beta for proportions. `drc` fits the
-error structure named in `drc_type`, which for the continuous test types is
-Gaussian. Where the response variance grows with the mean, as it does for a
-growth or biomass endpoint spanning two orders of magnitude, the Gaussian fit
-is influenced more by the high-response observations than the Gamma fit is, and
-the two engines will not return the same point estimate. This is a difference
-in the model, not an error in either.
+error structure named in `drc_type`. This differs from the `bayesnec` family for
+two groups of test types, in different ways.
+
+For the **continuous** test types `drc` fits a Gaussian error where `bayesnec`
+fits a Gamma. Where the response variance grows with the mean, as it does for a
+growth or biomass endpoint spanning two orders of magnitude, the Gaussian fit is
+influenced more by the high-response observations than the Gamma fit is, and the
+two engines will not return the same point estimate. This is a difference in the
+model, not an error in either.
+
+For the **count** test types, `daphnia_reproduction` and
+`earthworm_reproduction`, `drc` fits `type = "Poisson"` where `bayesnec` fits a
+negative binomial. A Poisson fixes the variance equal to the mean; a negative
+binomial estimates it. Where the counts are more variable than a Poisson allows,
+which is usual for a reproduction endpoint, the `drc` point estimate is
+unaffected but its standard errors, and every interval built from them, are too
+narrow by roughly the square root of the dispersion.
+
+This is not a small effect on the shipped example data, which are generated with
+a negative binomial of size 18 and 12 respectively. `cr_drc_dispersion()` reports
+2.77 for `daphnia_reproduction` and 3.32 for `earthworm_reproduction`. On
+`daphnia_reproduction` the `drc` EC50 is 0.350 with a delta-method interval of
+0.309 to 0.391, a width of 0.082; scaling by the square root of the dispersion
+gives 0.137, so the reported interval is about forty per cent narrower than the
+data support. The binomial test types sit between 0.63 and 1.60, so the same
+concern does not arise for them.
+
+The `drc` workflow therefore reports the dispersion of the fit alongside the
+residual plot. It is reported rather than used to widen the interval, because
+rescaling an interval is a change to the model and belongs in the model
+specification. Where it is well above one, the reported `drc` interval is
+conditional on the Poisson assumption and should be recorded as such, and the
+`bayesnec` workflow is the one that estimates the extra variation rather than
+assuming it away.
 
 ## The link function
 
