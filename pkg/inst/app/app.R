@@ -25,6 +25,14 @@ engine_available <- c(
   bayesnec = requireNamespace("bayesnec", quietly = TRUE)
 )
 
+# Shown above the tabs rather than inside one, so that it is present whichever
+# tab the analyst is looking at and cannot be navigated away from.
+disclaimer_banner <- div(
+  class = "alert alert-warning mb-3",
+  strong("Disclaimer. "),
+  cr_disclaimer()
+)
+
 ui <- page_sidebar(
   title = "Concentration-response analysis",
   theme = bs_theme(version = 5),
@@ -63,6 +71,8 @@ ui <- page_sidebar(
     actionButton("run", "Run analysis", class = "btn-primary w-100"),
     uiOutput("run_note")
   ),
+
+  disclaimer_banner,
 
   navset_card_tab(
     id = "tabs",

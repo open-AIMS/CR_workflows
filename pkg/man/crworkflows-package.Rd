@@ -6,7 +6,7 @@
 \alias{crworkflows-package}
 \title{crworkflows: Concentration-Response Analysis Workflows for Commercial Ecotoxicology Laboratories}
 \description{
-Example datasets, data validation, model fitting and reporting functions supporting standardised concentration-response analysis of routine ecotoxicological test types. Two independent fitting engines are supported: Bayesian multi-model averaging via 'bayesnec' and frequentist non-linear regression via 'drc'. Both engines are optional; install only the one in use.
+Example datasets, data validation, model fitting and reporting functions supporting standardised concentration-response analysis of routine ecotoxicological test types. Two independent fitting engines are supported: Bayesian multi-model averaging via 'bayesnec' and frequentist non-linear regression via 'drc'. Both engines are optional; install only the one in use. This package was written by a generative AI system and has not been thoroughly checked. It is a work in progress, and any result derived from it must be treated with caution and verified independently.
 }
 \author{
 \strong{Maintainer}: Rebecca Fisher \email{rebeccafisher76@gmail.com}

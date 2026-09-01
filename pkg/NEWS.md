@@ -1,5 +1,8 @@
 # crworkflows 0.0.0.9000
 
+* This package was written by a generative AI system and has not been
+  thoroughly checked. `cr_disclaimer()` holds the statement; the Shiny interface
+  displays it and both workflow templates print it at the top of every report.
 * Initial project scaffold.
 * Test-type registry covering fourteen routine test types across aquatic,
   sublethal, terrestrial, sediment and microbial exposures.
