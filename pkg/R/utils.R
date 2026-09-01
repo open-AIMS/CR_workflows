@@ -56,6 +56,22 @@ cr_project_root <- function(path = getwd()) {
   }
 }
 
+#' Where outputs should be written
+#'
+#' Returns the project root where one can be found, and the working directory
+#' otherwise. Unlike [cr_project_root()] this never fails, because a laboratory
+#' that installed the package without cloning the project still has to be able
+#' to run an analysis and get its outputs somewhere predictable.
+#'
+#' @return A directory path, as a character string.
+#' @export
+#' @examples
+#' cr_output_root()
+cr_output_root <- function() {
+  root <- tryCatch(cr_project_root(), error = function(e) NULL)
+  if (is.null(root)) getwd() else root
+}
+
 #' Path to a project output file
 #'
 #' Builds a path under the project `outputs/` directory and creates the

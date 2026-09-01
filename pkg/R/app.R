@@ -11,12 +11,18 @@
 #' few seconds; a model-averaged `bayesnec` analysis takes eight to fifteen
 #' minutes, and is submitted as a job to be collected when it finishes.
 #'
-#' @param root Project root, containing the `workflows/` and `outputs/`
-#'   directories. Defaults to [cr_project_root()].
+#' The project does not have to be cloned. The workflow documents ship inside
+#' the package, so an installed package is enough to run the app; where a
+#' project tree is present its own `workflows/` directory is used instead, so a
+#' laboratory that has adapted a document gets its version.
+#'
+#' @param root Directory the outputs are written under, in an `outputs/`
+#'   subdirectory. `NULL` uses the project containing the working directory if
+#'   there is one, and the working directory otherwise.
 #' @param ... Passed to [shiny::runApp()], for example `port` or `launch.browser`.
 #' @return Invisibly `NULL`. Called for the side effect of running the app.
 #' @export
-run_cr_app <- function(root = cr_project_root(), ...) {
+run_cr_app <- function(root = NULL, ...) {
   for (p in c("shiny", "bslib", "DT", "callr")) {
     if (!requireNamespace(p, quietly = TRUE)) {
       stop("Package '", p, "' is required to run the interface.", call. = FALSE)
@@ -28,13 +34,9 @@ run_cr_app <- function(root = cr_project_root(), ...) {
       call. = FALSE
     )
   }
+  if (is.null(root)) root <- cr_output_root()
+  dir.create(root, recursive = TRUE, showWarnings = FALSE)
   root <- normalizePath(root, "/", mustWork = TRUE)
-  if (!dir.exists(file.path(root, "workflows"))) {
-    stop("No 'workflows' directory under '", root,
-      "'. Point run_cr_app() at the project root.",
-      call. = FALSE
-    )
-  }
   shiny::shinyOptions(cr_root = root)
   shiny::runApp(app_dir, ...)
 }

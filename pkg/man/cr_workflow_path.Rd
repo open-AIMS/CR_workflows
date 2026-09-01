@@ -4,22 +4,26 @@
 \alias{cr_workflow_path}
 \title{Locate a workflow document}
 \usage{
-cr_workflow_path(
-  engine = c("drc", "bayesnec"),
-  test_type,
-  root = cr_project_root()
-)
+cr_workflow_path(engine = c("drc", "bayesnec"), test_type, root = NULL)
 }
 \arguments{
 \item{engine}{Either \code{"drc"} or \code{"bayesnec"}.}
 
 \item{test_type}{Test-type identifier, one of \code{cr_test_types()$id}.}
 
-\item{root}{Project root. Defaults to \code{\link[=cr_project_root]{cr_project_root()}}.}
+\item{root}{Project root to look in first. \code{NULL} uses the project containing
+the working directory, if there is one.}
 }
 \value{
 The path to the workflow document.
 }
 \description{
-Locate a workflow document
+Workflow documents are shipped inside the package and are also kept in the
+project's \verb{workflows/} directory, where they can be edited. The project copy
+is preferred when one is present, so a laboratory that has adapted a document
+gets its own version; the installed copy is used otherwise, so the package
+works on its own without the project being cloned.
+}
+\examples{
+cr_workflow_path("drc", "algal_growth")
 }

@@ -24,6 +24,7 @@ CR_workflows/
 │   ├── data-raw/         the scripts that generate the datasets and their docs
 │   ├── inst/extdata/     the same datasets as csv, as input format templates
 │   ├── inst/app/         the Shiny interface
+│   ├── inst/workflows/   the workflow documents, shipped with the package
 │   └── tests/testthat/   unit tests
 ├── workflows/            end-to-end Quarto documents, edited in place
 │   ├── _templates/       one template per engine; the documents are built from these
@@ -39,20 +40,41 @@ CR_workflows/
 └── superceded/           safety-net backups of untracked files before editing
 ```
 
-The workflow documents live outside the package so that a laboratory can edit
-them directly for a particular sample without rebuilding or reinstalling
-anything.
+The workflow documents live in `workflows/` so that a laboratory can edit them
+for a particular test type without rebuilding anything. `_build_workflows.R`
+also copies them into `pkg/inst/workflows/`, so an installed package carries
+its own copy and can run an analysis without the project being cloned. Where
+both are present the project copy wins, so a local edit is what gets used.
 
 ## Setting up
 
+The workflow documents are shipped inside the package, so installing it is
+enough to run an analysis or the interface. Cloning the project is only needed
+in order to edit the documents.
+
 ```r
-# from the project root
 install.packages(c("ggplot2", "rlang", "dplyr", "readr", "quarto", "knitr"))
 install.packages("drc")                     # for the drc workflows
 install.packages("bayesnec")                # for the bayesnec workflows
 
-install.packages("devtools")
-devtools::install("pkg")
+remotes::install_github("open-AIMS/CR_workflows", subdir = "pkg")
+```
+
+Rendering a report also needs the [Quarto CLI](https://quarto.org/docs/get-started/),
+which is separate from the `quarto` R package.
+
+From a clone instead:
+
+```r
+devtools::install("pkg")   # from the project root
+```
+
+Outputs are written to an `outputs/` directory. Inside a clone that is the
+project's own `outputs/`; elsewhere it is created under the working directory,
+or wherever `root` points:
+
+```r
+crworkflows::cr_render_workflow("drc", "algal_growth", root = "~/cr_analyses")
 ```
 
 The `drc` workflows need nothing beyond a plain R installation. The `bayesnec`
@@ -151,17 +173,33 @@ threshold estimate keeps its `NEC`, `NSEC` or `N(S)EC` label.
 ## Running an analysis from the console
 
 ```r
-source("workflows/_render.R")
+library(crworkflows)
 
 # the shipped example data, to confirm the installation works
-render_workflow("drc", "algal_growth")
+cr_render_workflow("drc", "algal_growth")
 
 # a real sample
-render_workflow(
+cr_render_workflow(
   "drc", "algal_growth",
   sample_id = "S2026-0142",
   data_file = "data/S2026-0142_algae.csv"
 )
+
+# a Bayesian analysis of the same sample
+cr_render_workflow(
+  "bayesnec", "algal_growth",
+  sample_id = "S2026-0142",
+  data_file = "data/S2026-0142_algae.csv"
+)
+```
+
+Analyses can also be run in the background, which is what the interface does and
+what a batch of samples needs:
+
+```r
+job <- cr_start_job("bayesnec", "algal_growth", sample_id = "S2026-0142")
+cr_job_status(job)
+cr_job_outputs(job)
 ```
 
 Each render writes four files under `outputs/`, sharing the stem

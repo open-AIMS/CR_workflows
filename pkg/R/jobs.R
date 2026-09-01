@@ -11,7 +11,7 @@
 #' @export
 cr_start_job <- function(engine = c("drc", "bayesnec"), test_type,
                          sample_id = "example", data_file = NULL,
-                         root = cr_project_root(),
+                         root = NULL,
                          backend = "cmdstanr", ...) {
   engine <- match.arg(engine)
   if (!requireNamespace("callr", quietly = TRUE)) {
@@ -19,6 +19,8 @@ cr_start_job <- function(engine = c("drc", "bayesnec"), test_type,
       call. = FALSE
     )
   }
+  if (is.null(root)) root <- cr_output_root()
+  dir.create(root, recursive = TRUE, showWarnings = FALSE)
   root <- normalizePath(root, "/", mustWork = TRUE)
   if (!is.null(data_file)) data_file <- normalizePath(data_file, "/", mustWork = TRUE)
 

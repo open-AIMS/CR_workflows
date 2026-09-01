@@ -4,12 +4,7 @@
 \alias{cr_output_files}
 \title{Paths to the outputs of one analysis}
 \usage{
-cr_output_files(
-  engine,
-  test_type,
-  sample_id = "example",
-  root = cr_project_root()
-)
+cr_output_files(engine, test_type, sample_id = "example", root = NULL)
 }
 \arguments{
 \item{engine}{Either \code{"drc"} or \code{"bayesnec"}.}
@@ -18,7 +13,8 @@ cr_output_files(
 
 \item{sample_id}{Identifier for the sample, used in the output file names.}
 
-\item{root}{Project root. Defaults to \code{\link[=cr_project_root]{cr_project_root()}}.}
+\item{root}{Project root to look in first. \code{NULL} uses the project containing
+the working directory, if there is one.}
 }
 \value{
 A named character vector with elements \code{report}, \code{figure}, \code{table}

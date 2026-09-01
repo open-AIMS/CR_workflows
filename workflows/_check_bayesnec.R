@@ -20,7 +20,7 @@ test_type <- if (length(args) >= 1) args[[1]] else "algal_growth"
 model <- if (length(args) >= 2) args[[2]] else NULL
 seed <- 20260831
 
-options(crworkflows.output_root = file.path(cr_project_root(), "outputs"))
+options(crworkflows.output_root = file.path(cr_output_root(), "outputs"))
 set.seed(seed)
 
 tt <- cr_test_type(test_type)

@@ -1,15 +1,42 @@
 #' Locate a workflow document
 #'
+#' Workflow documents are shipped inside the package and are also kept in the
+#' project's `workflows/` directory, where they can be edited. The project copy
+#' is preferred when one is present, so a laboratory that has adapted a document
+#' gets its own version; the installed copy is used otherwise, so the package
+#' works on its own without the project being cloned.
+#'
 #' @param engine Either `"drc"` or `"bayesnec"`.
 #' @inheritParams check_cr_data
-#' @param root Project root. Defaults to [cr_project_root()].
+#' @param root Project root to look in first. `NULL` uses the project containing
+#'   the working directory, if there is one.
 #' @return The path to the workflow document.
 #' @export
+#' @examples
+#' cr_workflow_path("drc", "algal_growth")
 cr_workflow_path <- function(engine = c("drc", "bayesnec"), test_type,
-                             root = cr_project_root()) {
+                             root = NULL) {
   engine <- match.arg(engine)
   tt <- cr_test_type(test_type)
-  file.path(root, "workflows", engine, tt$group, paste0(test_type, ".qmd"))
+  rel <- file.path("workflows", engine, tt$group, paste0(test_type, ".qmd"))
+
+  if (is.null(root)) root <- tryCatch(cr_project_root(), error = function(e) NULL)
+  if (!is.null(root)) {
+    in_project <- file.path(root, rel)
+    if (file.exists(in_project)) {
+      return(in_project)
+    }
+  }
+
+  installed <- system.file(rel, package = "crworkflows")
+  if (nzchar(installed) && file.exists(installed)) {
+    return(installed)
+  }
+
+  stop("No ", engine, " workflow document found for test type '", test_type,
+    "', either in a project tree or in the installed package.",
+    call. = FALSE
+  )
 }
 
 #' Render a workflow document and file its report
@@ -38,7 +65,7 @@ cr_workflow_path <- function(engine = c("drc", "bayesnec"), test_type,
 #' @export
 cr_render_workflow <- function(engine = c("drc", "bayesnec"), test_type,
                                sample_id = "example", data_file = NULL,
-                               root = cr_project_root(),
+                               root = NULL,
                                backend = "cmdstanr", quiet = TRUE, ...) {
   engine <- match.arg(engine)
   if (!requireNamespace("quarto", quietly = TRUE)) {
@@ -46,14 +73,13 @@ cr_render_workflow <- function(engine = c("drc", "bayesnec"), test_type,
       call. = FALSE
     )
   }
+  # `root` decides where the outputs go. The document itself is resolved
+  # separately, from the project tree if there is one and from the installed
+  # package otherwise, so an analysis can be run without cloning the project.
+  if (is.null(root)) root <- cr_output_root()
+  dir.create(root, recursive = TRUE, showWarnings = FALSE)
   root <- normalizePath(root, "/", mustWork = TRUE)
   qmd <- cr_workflow_path(engine, test_type, root)
-  if (!file.exists(qmd)) {
-    stop("No ", engine, " workflow document found for test type '", test_type,
-      "'. Expected: ", qmd,
-      call. = FALSE
-    )
-  }
 
   work_dir <- file.path(tempdir(), paste0("cr_", engine, "_", test_type, "_", as.integer(Sys.time()), "_", sample(1e6, 1)))
   dir.create(work_dir, recursive = TRUE, showWarnings = FALSE)
@@ -115,7 +141,8 @@ cr_render_workflow <- function(engine = c("drc", "bayesnec"), test_type,
 #'   and `fit`.
 #' @export
 cr_output_files <- function(engine, test_type, sample_id = "example",
-                            root = cr_project_root()) {
+                            root = NULL) {
+  if (is.null(root)) root <- cr_output_root()
   stem <- paste(sample_id, test_type, engine, sep = "_")
   c(
     report = file.path(root, "outputs", "reports", paste0(stem, ".html")),

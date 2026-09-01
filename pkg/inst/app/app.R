@@ -10,7 +10,7 @@ library(shiny)
 library(bslib)
 library(crworkflows)
 
-root <- getShinyOption("cr_root", default = tryCatch(cr_project_root(), error = function(e) getwd()))
+root <- getShinyOption("cr_root", default = cr_output_root())
 registry <- cr_test_types()
 
 # Grouped so the dropdown reads as the laboratory's own list of tests rather

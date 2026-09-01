@@ -67,3 +67,81 @@ test_that("write_cr_outputs() archives the weights only when averaging happened"
   paths1 <- write_cr_outputs(single, p, res1, stem = "ONE", root = root, save_fit = FALSE)
   expect_false("weights" %in% names(paths1))
 })
+
+test_that("every workflow document is shipped inside the package", {
+  # The package has to be able to run an analysis without the project being
+  # cloned, which means the documents must be installed with it.
+  for (id in cr_test_types()$id) {
+    for (engine in c("drc", "bayesnec")) {
+      rel <- file.path(
+        "workflows", engine, cr_test_type(id)$group, paste0(id, ".qmd")
+      )
+      p <- system.file(rel, package = "crworkflows")
+      expect_true(nzchar(p) && file.exists(p),
+        info = paste("not shipped:", rel)
+      )
+    }
+  }
+})
+
+test_that("the document is taken from the installed package when no project is present", {
+  sandbox <- withr::local_tempdir()
+  withr::with_dir(sandbox, {
+    withr::with_envvar(c(CRWORKFLOWS_PROJECT_ROOT = ""), {
+      p <- cr_workflow_path("drc", "algal_growth")
+      expect_true(file.exists(p))
+      expect_equal(
+        normalizePath(p, "/"),
+        normalizePath(
+          system.file("workflows/drc/aquatic/algal_growth.qmd",
+            package = "crworkflows"
+          ), "/"
+        )
+      )
+    })
+  })
+})
+
+test_that("a project copy takes precedence over the installed one", {
+  # A laboratory that has adapted a document must get its own version.
+  root <- withr::local_tempdir()
+  rel <- file.path("workflows", "drc", "aquatic")
+  dir.create(file.path(root, rel), recursive = TRUE)
+  local_doc <- file.path(root, rel, "algal_growth.qmd")
+  writeLines("edited locally", local_doc)
+
+  p <- cr_workflow_path("drc", "algal_growth", root = root)
+  expect_equal(normalizePath(p, "/"), normalizePath(local_doc, "/"))
+  expect_identical(readLines(p), "edited locally")
+})
+
+test_that("cr_output_root() falls back to the working directory", {
+  sandbox <- withr::local_tempdir()
+  withr::with_dir(sandbox, {
+    withr::with_envvar(c(CRWORKFLOWS_PROJECT_ROOT = ""), {
+      withr::with_options(list(crworkflows.project_root = NULL), {
+        expect_equal(
+          normalizePath(cr_output_root(), "/"),
+          normalizePath(sandbox, "/")
+        )
+      })
+    })
+  })
+
+  marked <- withr::local_tempdir()
+  file.create(file.path(marked, ".crproject"))
+  deep <- file.path(marked, "a")
+  dir.create(deep)
+  withr::with_dir(deep, {
+    withr::with_envvar(c(CRWORKFLOWS_PROJECT_ROOT = ""), {
+      expect_equal(
+        normalizePath(cr_output_root(), "/"),
+        normalizePath(marked, "/")
+      )
+    })
+  })
+})
+
+test_that("an unknown test type is still an error, not a silent fallback", {
+  expect_error(cr_workflow_path("drc", "not_a_test"), "Unknown test type")
+})

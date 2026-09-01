@@ -68,8 +68,33 @@ build_workflows <- function(root = ".", force = FALSE) {
 
   out <- do.call(rbind, rows)
   utils::write.csv(out, manifest_path, row.names = FALSE)
+
+  # The documents are copied into the package as well as written to the editable
+  # tree. Shipping them means an installed package can run an analysis on its
+  # own, without the project being cloned; copying them here rather than by hand
+  # means the shipped copies cannot fall behind the ones that were just built.
+  ship_workflows(root)
+
   message("built ", nrow(out), " workflow documents")
   invisible(out)
+}
+
+ship_workflows <- function(root = ".") {
+  src <- file.path(root, "workflows")
+  dest <- file.path(root, "pkg", "inst", "workflows")
+  unlink(dest, recursive = TRUE)
+  for (engine in c("drc", "bayesnec")) {
+    for (d in list.dirs(file.path(src, engine), recursive = FALSE)) {
+      target <- file.path(dest, engine, basename(d))
+      dir.create(target, recursive = TRUE, showWarnings = FALSE)
+      file.copy(list.files(d, pattern = "[.]qmd$", full.names = TRUE), target,
+        overwrite = TRUE
+      )
+    }
+  }
+  n <- length(list.files(dest, pattern = "[.]qmd$", recursive = TRUE))
+  message("shipped ", n, " workflow documents into the package")
+  invisible(dest)
 }
 
 # A content hash, used only to detect hand edits. tools::md5sum() works on files

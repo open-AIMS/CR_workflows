@@ -35,7 +35,7 @@ knitr::opts_chunk$set(fig.width = 7, fig.height = 4.5, dpi = 200)
 # Quarto renders with the working directory set to this document, so the output
 # root is resolved from the project marker rather than relatively. Without this
 # every workflow would create its own outputs/ folder beside itself.
-options(crworkflows.output_root = file.path(cr_project_root(), "outputs"))
+options(crworkflows.output_root = file.path(cr_output_root(), "outputs"))
 ```
 
 ## Purpose

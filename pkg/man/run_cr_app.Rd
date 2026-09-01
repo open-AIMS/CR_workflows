@@ -4,11 +4,12 @@
 \alias{run_cr_app}
 \title{Launch the concentration-response analysis interface}
 \usage{
-run_cr_app(root = cr_project_root(), ...)
+run_cr_app(root = NULL, ...)
 }
 \arguments{
-\item{root}{Project root, containing the \verb{workflows/} and \verb{outputs/}
-directories. Defaults to \code{\link[=cr_project_root]{cr_project_root()}}.}
+\item{root}{Directory the outputs are written under, in an \verb{outputs/}
+subdirectory. \code{NULL} uses the project containing the working directory if
+there is one, and the working directory otherwise.}
 
 \item{...}{Passed to \code{\link[shiny:runApp]{shiny::runApp()}}, for example \code{port} or \code{launch.browser}.}
 }
@@ -27,4 +28,9 @@ Analyses run in a background process, so the interface stays usable while a
 fit is running and several samples can run at once. A \code{drc} analysis takes a
 few seconds; a model-averaged \code{bayesnec} analysis takes eight to fifteen
 minutes, and is submitted as a job to be collected when it finishes.
+
+The project does not have to be cloned. The workflow documents ship inside
+the package, so an installed package is enough to run the app; where a
+project tree is present its own \verb{workflows/} directory is used instead, so a
+laboratory that has adapted a document gets its version.
 }

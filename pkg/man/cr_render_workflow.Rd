@@ -9,7 +9,7 @@ cr_render_workflow(
   test_type,
   sample_id = "example",
   data_file = NULL,
-  root = cr_project_root(),
+  root = NULL,
   backend = "cmdstanr",
   quiet = TRUE,
   ...
@@ -25,7 +25,8 @@ cr_render_workflow(
 \item{data_file}{Path to a csv of the sample data, or \code{NULL} to use the
 shipped example dataset for the test type.}
 
-\item{root}{Project root. Defaults to \code{\link[=cr_project_root]{cr_project_root()}}.}
+\item{root}{Project root to look in first. \code{NULL} uses the project containing
+the working directory, if there is one.}
 
 \item{backend}{For the bayesnec engine, the Stan interface. \code{"cmdstanr"} is
 the default because it is the faster of the two. Both compile Stan models
