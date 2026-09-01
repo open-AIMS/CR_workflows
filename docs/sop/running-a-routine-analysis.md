@@ -114,7 +114,13 @@ mixture of the two, which is what the routine `bayesnec` workflow returns
 because its default candidate set contains both kinds of model. Do not shorten
 `N(S)EC` to `NEC` in a report.
 
-An estimate with `NA` in `lower` and `upper` from a `drc` analysis of a
-hormetic test type is the direct-solve fallback described in
-`docs/engine-comparison.md`, not a convergence failure. Report the point
+An estimate with `NA` in `lower` and `upper` but a value in `estimate`, from a
+`drc` analysis of a hormetic test type, is the direct-solve fallback described
+in `docs/engine-comparison.md`, not a convergence failure. Report the point
 estimate and state that no interval was available.
+
+A row with `NA` in `estimate` as well carries its reason in the `interval`
+column: the target for that level lies outside the range of the fitted curve.
+Report that level as greater than the highest tested concentration, and read the
+data checks, which say whether the effect was simply not reached or the response
+was supplied in the wrong direction.

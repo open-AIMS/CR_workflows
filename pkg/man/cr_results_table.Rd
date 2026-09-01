@@ -16,8 +16,10 @@ cr_results_table(
 \arguments{
 \item{fit}{A \code{bayesnecfit}, \code{bayesmanecfit} or \code{drc} object.}
 
-\item{test_type}{Test-type identifier. Only needed for \code{drc} fits not created
-by \code{\link[=fit_cr_drc]{fit_cr_drc()}}, which records it as an attribute.}
+\item{test_type}{Test-type identifier. For \code{\link[=cr_ecx]{cr_ecx()}} this is only needed for
+\code{drc} fits not created by \code{\link[=fit_cr_drc]{fit_cr_drc()}}, which records it as an attribute;
+\code{\link[=cr_results_table]{cr_results_table()}} always requires it, because the identifying columns it
+adds are read from the registry.}
 
 \item{ecx_val}{ECx levels as percentages. Defaults to the registry value for
 the test type.}

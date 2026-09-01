@@ -13,8 +13,10 @@
 #' @param fit A `bayesnecfit`, `bayesmanecfit` or `drc` object.
 #' @param ecx_val ECx levels as percentages. Defaults to the registry value for
 #'   the test type.
-#' @param test_type Test-type identifier. Only needed for `drc` fits not created
-#'   by [fit_cr_drc()], which records it as an attribute.
+#' @param test_type Test-type identifier. For [cr_ecx()] this is only needed for
+#'   `drc` fits not created by [fit_cr_drc()], which records it as an attribute;
+#'   [cr_results_table()] always requires it, because the identifying columns it
+#'   adds are read from the registry.
 #' @param level Interval width. Defaults to 0.95.
 #' @param ... Passed to the underlying engine function. The `drc` methods also
 #'   accept `reference`, which selects what the ECx is referenced to: `"control"`
@@ -22,10 +24,14 @@
 #'   convention in ecotoxicological reporting and what `bayesnec::ecx()` returns;
 #'   `"range"` references it to the fitted response range, which is drc's own
 #'   convention. The two coincide wherever the fitted lower limit is zero.
-#' @return A data frame with columns `engine`, `estimate_type`, `level`,
-#'   `estimate`, `se`, `lower`, `upper` and `interval`. `se` is `NA` for
-#'   `bayesnec` fits, whose interval is a posterior quantile rather than a
-#'   standard error, and is present so that both engines return one schema.
+#' @return A data frame with one row per requested level and columns `engine`,
+#'   `estimate_type`, `level`, `estimate`, `se`, `lower`, `upper` and `interval`.
+#'   `se` is `NA` for `bayesnec` fits, whose interval is a posterior quantile
+#'   rather than a standard error, and is present so that both engines return one
+#'   schema. A level whose target lies outside the range of the fitted curve has
+#'   no solution; it is returned as `NA` with the reason in its `interval`, and a
+#'   warning is raised, so that the levels that were estimated are still
+#'   available.
 #' @export
 cr_ecx <- function(fit, ecx_val = NULL, test_type = NULL, level = 0.95, ...) {
   UseMethod("cr_ecx")
@@ -66,24 +72,30 @@ cr_ecx.drc <- function(fit, ecx_val = NULL, test_type = NULL, level = 0.95,
   } else {
     ecx_val
   }
-  # The message states what was found rather than the conclusion. The target
-  # can fall outside the fitted range because the curve never declines that far,
-  # in which case the ECx is above the tested range; it can equally happen
-  # because the fitted curve rises with concentration, which means the wrong
-  # response column was supplied. check_cr_data() distinguishes the two, so the
-  # analyst is sent there rather than being given one of the two explanations as
-  # though it were established.
-  if (any(!is.finite(respLev))) {
-    stop("ECx level(s) ", paste(ecx_val[!is.finite(respLev)], collapse = ", "),
-      " fall outside the range of the fitted curve, so no concentration solves ",
-      "them. Run check_cr_data() on these data: either the effect was not ",
-      "reached within the tested range, in which case report the ECx as greater ",
-      "than the highest tested concentration, or the fitted response rises with ",
-      "concentration, in which case the wrong response column was supplied.",
+  # A level whose target lies outside the fitted range has no solution. That is
+  # a statement about that level, not about the fit: a curve reaching a 45 per
+  # cent effect determines EC10 and EC20 perfectly well and only leaves EC50
+  # unreachable. Raising an error would withhold the levels that were estimated
+  # and, in a workflow, produce no report at all. The level is therefore
+  # returned as NA with the reason in its own interval column, which is the same
+  # treatment the package gives every other problem that threatens one result
+  # rather than making the analysis impossible.
+  #
+  # The reason states what was found rather than a conclusion. The target can
+  # fall outside the range because the curve never declines that far, in which
+  # case the ECx is above the tested range; it can equally happen because the
+  # fitted curve rises with concentration, which means the wrong response column
+  # was supplied. check_cr_data() distinguishes the two, so the analyst is sent
+  # there rather than being handed one of the two explanations as established.
+  ref_label <- if (reference == "control") "control response" else "response range"
+  unreachable <- !is.finite(respLev)
+  if (all(unreachable)) {
+    warning("No ECx level could be estimated for this fit: every target lies ",
+      "outside the range of the fitted curve. Run check_cr_data() on these data.",
       call. = FALSE
     )
+    return(ecx_na_rows(ecx_val, ref_label))
   }
-  ref_label <- if (reference == "control") "control response" else "response range"
 
   # drc::ED() fails inside uniroot() whenever the Brain-Cousens hormesis term is
   # weakly determined: the root-finding interval it chooses does not bracket the
@@ -95,25 +107,30 @@ cr_ecx.drc <- function(fit, ecx_val = NULL, test_type = NULL, level = 0.95,
   # analyst sees the point estimate and knows the interval is missing.
   est <- tryCatch(
     drc::ED(fit,
-      respLev = respLev, type = "relative", interval = "delta",
+      respLev = respLev[!unreachable], type = "relative", interval = "delta",
       level = level, display = FALSE, ...
     ),
     error = function(e) NULL
   )
 
   if (!is.null(est)) {
-    return(data.frame(
-      engine = "drc", estimate_type = "ECx", level = ecx_val,
-      estimate = as.numeric(est[, "Estimate"]),
-      se = as.numeric(est[, "Std. Error"]),
-      lower = as.numeric(est[, "Lower"]),
-      upper = as.numeric(est[, "Upper"]),
-      interval = sprintf(
-        "%.0f%% delta-method confidence interval, referenced to the fitted %s",
-        100 * level, ref_label
-      ),
-      stringsAsFactors = FALSE
-    ))
+    out <- ecx_na_rows(ecx_val, ref_label)
+    out$estimate[!unreachable] <- as.numeric(est[, "Estimate"])
+    out$se[!unreachable] <- as.numeric(est[, "Std. Error"])
+    out$lower[!unreachable] <- as.numeric(est[, "Lower"])
+    out$upper[!unreachable] <- as.numeric(est[, "Upper"])
+    out$interval[!unreachable] <- sprintf(
+      "%.0f%% delta-method confidence interval, referenced to the fitted %s",
+      100 * level, ref_label
+    )
+    if (any(unreachable)) {
+      warning("ECx level(s) ", paste(ecx_val[unreachable], collapse = ", "),
+        " lie outside the range of the fitted curve and are reported as NA. ",
+        "Run check_cr_data() on these data.",
+        call. = FALSE
+      )
+    }
+    return(out)
   }
 
   warning("drc::ED() did not converge for this fit; ECx values were obtained by ",
@@ -121,11 +138,25 @@ cr_ecx.drc <- function(fit, ecx_val = NULL, test_type = NULL, level = 0.95,
     "interval. Check the fitted model, and consider compare_drc_models().",
     call. = FALSE
   )
+  out <- ecx_na_rows(ecx_val, ref_label)
+  out$estimate[!unreachable] <- cr_solve_ecx(fit, test_type, ecx_val[!unreachable])
+  out$interval[!unreachable] <- sprintf(
+    "no interval available, referenced to the fitted %s", ref_label
+  )
+  out
+}
+
+# The result skeleton, one row per requested level, filled in where a level
+# could be estimated. A level that could not keeps its NA estimate and carries
+# the reason in the column that already labels what every other interval is.
+ecx_na_rows <- function(ecx_val, ref_label) {
   data.frame(
     engine = "drc", estimate_type = "ECx", level = ecx_val,
-    estimate = cr_solve_ecx(fit, test_type, ecx_val),
-    se = NA_real_, lower = NA_real_, upper = NA_real_,
-    interval = sprintf("no interval available, referenced to the fitted %s", ref_label),
+    estimate = NA_real_, se = NA_real_, lower = NA_real_, upper = NA_real_,
+    interval = paste0(
+      "not estimable: the target lies outside the range of the fitted curve, ",
+      "referenced to the fitted ", ref_label
+    ),
     stringsAsFactors = FALSE
   )
 }

@@ -114,6 +114,15 @@ test type in the registry, so this cannot regress unnoticed.
 
 ## Known numerical behaviour
 
+An ECx level whose target lies outside the range of the fitted curve has no
+solution. A curve that plateaus above half the control determines EC10 and EC20
+and leaves only EC50 unreachable, so that level alone is returned as `NA` with
+the reason in its `interval` column and a warning is raised. The levels that
+were estimated are still reported, and the workflow still produces a report.
+Where no level is reachable at all, which is what an inverted response column
+gives, every row is `NA` and the warning says so; `check_cr_data()` names the
+cause.
+
 `drc::ED()` fails inside `uniroot()` when a Brain-Cousens hormesis term is
 weakly determined: the root-finding interval it chooses does not bracket the
 target, and the call errors rather than returning that level as `NA`. This was

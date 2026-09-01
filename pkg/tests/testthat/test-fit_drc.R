@@ -149,3 +149,40 @@ test_that("a missing lack-of-fit test becomes NA rather than an error", {
   binom_fit <- fit_cr_drc(fish_larval_survival, "fish_larval_survival", validate = FALSE)
   expect_length(crworkflows:::drc_lack_of_fit(binom_fit), 1L)
 })
+
+test_that("an unreachable ECx level is reported as NA without losing the others", {
+  # A curve that plateaus above half the control determines EC10 and EC20 and
+  # leaves only EC50 unreachable. Raising an error for the whole call withheld
+  # the two levels that were estimated and, in a workflow, produced no report at
+  # all. coral_bleaching uses LL.4, whose lower limit is estimated rather than
+  # fixed at zero, so the plateau is where the unreachability comes from.
+  d <- coral_bleaching
+  d$prop_symbiont <- 0.62 + (d$prop_symbiont - min(d$prop_symbiont)) *
+    (0.95 - 0.62) / diff(range(d$prop_symbiont))
+  fit <- suppressWarnings(fit_cr_drc(d, "coral_bleaching", validate = FALSE))
+
+  expect_warning(res <- cr_ecx(fit), "lie outside the range of the fitted curve")
+  expect_equal(res$level, c(10, 20, 50))
+  expect_true(all(is.finite(res$estimate[res$level %in% c(10, 20)])))
+  expect_true(is.na(res$estimate[res$level == 50]))
+  expect_match(res$interval[res$level == 50], "not estimable")
+  expect_match(res$interval[res$level == 10], "delta-method")
+
+  # A results table is still produced, which is what a workflow needs.
+  tab <- suppressWarnings(cr_results_table(fit, "coral_bleaching", sample_id = "S1"))
+  expect_equal(nrow(tab), 3L)
+  expect_equal(sum(is.finite(tab$estimate)), 2L)
+})
+
+test_that("a fit where no level is reachable warns rather than aborting", {
+  # An inverted response fits an increasing curve, so no ECx has a solution.
+  # check_cr_data() names the cause; this path must still return a table.
+  d <- daphnia_immobilisation
+  d$mobile <- d$immobile
+  fit <- suppressWarnings(fit_cr_drc(d, "daphnia_immobilisation", validate = FALSE))
+
+  expect_warning(res <- cr_ecx(fit), "No ECx level could be estimated")
+  expect_equal(res$level, cr_ecx_targets("daphnia_immobilisation"))
+  expect_true(all(is.na(res$estimate)))
+  expect_true(all(grepl("not estimable", res$interval)))
+})
