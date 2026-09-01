@@ -128,28 +128,8 @@ check_response_range <- function(y, data, tt) {
   w
 }
 
-# Two problems are read off the same quantity: the mean response at the highest
-# tested concentration as a fraction of the control.
-#
-# A fraction at or above one means the response rises with concentration. Every
-# response column in the registry is oriented to fall, so this is almost always
-# the wrong column having been supplied -- the affected count instead of its
-# complement, which the standard operating procedure names as one of the
-# decisions that are hard to correct later. Left undetected it fits an
-# increasing curve and the ECx values are meaningless, so it is reported here
-# rather than surfacing later as an unrelated-looking failure in the estimates.
-#
-# A fraction below one but above the largest effect the test type reports means
-# that effect was never observed, so an ECx at that level extrapolates beyond
-# the data. The threshold is taken from the registry rather than fixed at a
-# half, so that a test type reporting only EC10 and EC20 is judged against what
-# it actually reports.
 # The mean response at the control and at the highest tested concentration, on
-# the proportion scale for binomial test types so the two are comparable. These
-# are compared directly rather than as a ratio, because an inverted response
-# often has a control mean of exactly zero -- the affected count in an
-# undamaged control -- and a ratio is then undefined for the very case the
-# direction check exists to catch.
+# the proportion scale for binomial test types so that the two are comparable.
 response_extremes <- function(y, data, tt) {
   if (tt$response_type == "binomial_trials") y <- y / data[[tt$trials_var]]
   x <- data[[tt$x_var]]
@@ -160,6 +140,25 @@ response_extremes <- function(y, data, tt) {
   )
 }
 
+# Two problems are read off those two means, in order.
+#
+# The response at the highest concentration not being below the control means
+# the response does not decline. Every response column in the registry is
+# oriented to fall, so this is almost always the wrong column having been
+# supplied -- the affected count instead of its complement, which the standard
+# operating procedure names as one of the decisions that are hard to correct
+# later. Left undetected it fits an increasing curve and the ECx values are
+# meaningless, so it is reported here rather than surfacing later as an
+# unrelated-looking failure in the estimates. The two means are compared
+# directly rather than as a ratio because an inverted response usually has a
+# control mean of exactly zero -- the affected count in an undamaged control --
+# and a ratio is undefined for the very case the check exists to catch.
+#
+# A response that does decline, but not as far as the largest effect the test
+# type reports, means that effect was never observed and an ECx at that level
+# extrapolates beyond the data. That threshold is read from the registry rather
+# than fixed at a half, so that a test type reporting only EC10 and EC20 is
+# judged against what it actually reports.
 check_response_direction <- function(y, data, tt, test_type) {
   e <- response_extremes(y, data, tt)
   if (!all(is.finite(e))) {
