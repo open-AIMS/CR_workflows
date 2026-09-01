@@ -5,6 +5,16 @@
 #
 # Run from the project root:  source("docs/_build_catalogue.R")
 
+# Small cardinals read better written out in this prose. Anything larger than
+# the list is given as a numeral, which is the usual convention and avoids
+# maintaining a table of number words for counts that will not arise.
+spell <- function(n) {
+  words <- c("one", "two", "three", "four", "five", "six", "seven", "eight",
+             "nine", "ten", "eleven", "twelve", "thirteen", "fourteen",
+             "fifteen", "sixteen", "seventeen", "eighteen", "nineteen", "twenty")
+  if (n >= 1 && n <= length(words)) words[[n]] else as.character(n)
+}
+
 build_catalogue <- function(root = ".") {
   source(file.path(root, "pkg", "R", "test_types.R"), local = TRUE)
   reg <- cr_test_types()
@@ -70,13 +80,19 @@ build_catalogue <- function(root = ".") {
     "dataset, which follows the guideline but is simulated, not measured. It is a",
     "guide to the expected input format, not a specification of the test.",
     "",
-    paste0("Fourteen test types across ", length(groups), " groups: ",
-      paste(groups, collapse = ", "), "."),
+    # Written out in words to match the register of the surrounding prose, and
+    # counted from the registry so it cannot say something the registry does not.
+    paste0(spell(nrow(reg)), " test types across ", spell(length(groups)),
+      " groups: ", paste(groups, collapse = ", "), "."),
     ""
   )
 
+  # LF on every platform, so that running this on Windows and on Linux produces
+  # the same file rather than one that differs only in its line endings.
   out <- file.path(root, "docs", "test-type-catalogue.md")
-  writeLines(c(header, body), out)
+  con <- file(out, open = "wb")
+  writeLines(c(header, body), con, sep = "\n")
+  close(con)
   message("wrote ", out)
   invisible(out)
 }

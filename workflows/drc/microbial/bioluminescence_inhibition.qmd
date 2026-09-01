@@ -23,7 +23,6 @@ execute:
 ```{r setup}
 #| include: false
 library(crworkflows)
-library(dplyr)
 library(ggplot2)
 
 set.seed(params$seed)
@@ -65,14 +64,18 @@ knitr::kable(
 
 The default is the simulated example dataset shipped with the package. Set
 `params$data_file` to a csv exported from the laboratory information system to
-analyse a real sample. The csv must carry the columns listed above;
-`inst/extdata/bioluminescence_inhibition.csv` is a template of the expected layout.
+analyse a real sample. The csv must carry the columns listed above. A template
+of the expected layout ships with the package; its path on this machine is
+printed below.
 
 ```{r load-data}
+cat("input format template:",
+    system.file("extdata", "bioluminescence_inhibition.csv", package = "crworkflows"), "\n")
+
 cr_data <- if (is.null(params$data_file)) {
   get(params$test_type, envir = asNamespace("crworkflows"))
 } else {
-  readr::read_csv(params$data_file, show_col_types = FALSE) |> as.data.frame()
+  utils::read.csv(params$data_file, stringsAsFactors = FALSE)
 }
 
 knitr::kable(head(cr_data, 10), caption = "First ten rows of the analysis dataset")
@@ -181,6 +184,37 @@ ggplot(resid_df, aes(fitted, residual)) +
   theme_bw()
 ```
 
+### Dispersion
+
+The Poisson and binomial error structures fix the variance at a function of the
+mean rather than estimating it. Where the data are more variable than that
+allows, the estimates are unaffected but the standard errors, and every interval
+built from them, are too narrow by roughly the square root of the dispersion
+reported below. A value near one means the assumed error structure describes the
+variation; the continuous test types estimate their own scale, so the check does
+not apply to them and reports `NA`.
+
+The value is reported rather than used to widen anything, because rescaling an
+interval is a change to the model and belongs in the model specification. Where
+it is well above one, record the reported interval as conditional on the assumed
+error structure, and consider the `bayesnec` workflow, which fits a negative
+binomial for the count endpoints and so estimates the extra variation instead of
+assuming it away.
+
+```{r dispersion}
+disp_fit <- if (inherits(fit, "cr_drc_ma")) fit$fits[[fit$comparison$model[1]]] else fit
+dispersion <- cr_drc_dispersion(disp_fit, params$test_type)
+if (is.na(dispersion)) {
+  cat("Not applicable: this test type estimates its own scale parameter.\n")
+} else {
+  cat(sprintf(
+    "Dispersion of the %s fit: %.2f. Standard errors are understated by about a factor of %.2f.\n",
+    if (inherits(fit, "cr_drc_ma")) paste("highest-weighted candidate,", fit$comparison$model[1]) else "fit",
+    dispersion, max(1, sqrt(dispersion))
+  ))
+}
+```
+
 ## Results
 
 ECx values are referenced to the fitted control response, which is the
@@ -206,7 +240,8 @@ knitr::kable(results[, c("estimate_type", "level", "estimate", "lower", "upper")
 
 ```{r fit-plot}
 #| fig-cap: "Fitted curve with its 95% confidence interval."
-plot_cr_fit(fit, cr_data, params$test_type)
+fit_plot <- plot_cr_fit(fit, cr_data, params$test_type)
+fit_plot
 ```
 
 ## Outputs and provenance
@@ -215,7 +250,7 @@ plot_cr_fit(fit, cr_data, params$test_type)
 stem <- paste(params$sample_id, params$test_type, "drc", sep = "_")
 paths <- write_cr_outputs(
   fit = fit,
-  plot = plot_cr_fit(fit, cr_data, params$test_type),
+  plot = fit_plot,
   results = results,
   stem = stem,
   save_fit = params$save_fit

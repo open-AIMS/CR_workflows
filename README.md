@@ -3,10 +3,96 @@
 Standardised concentration-response analysis workflows for commercial
 ecotoxicology laboratories.
 
-The project supplies, for each of fourteen routine test types: an example
-dataset, the analysis functions that test type needs, and a complete
-end-to-end Quarto document that takes a laboratory data file and produces the
-figure, the estimate table and the archived model fit that a report requires.
+For each of fourteen routine test types the project supplies an example dataset,
+the analysis functions that test type needs, and a complete end-to-end Quarto
+document that takes a laboratory data file and produces the figure, the estimate
+table and the archived model fit that a report requires.
+
+**Most people should use the application.** It takes a csv, shows the data checks
+before anything is fitted, runs the analysis and hands back the report.
+Everything else on this page is the same analysis driven from the console
+instead.
+
+## Getting started
+
+Install once, from R:
+
+```r
+install.packages(c(
+  "remotes", "drc", "quarto", "knitr", "ggplot2", "rlang",
+  "shiny", "bslib", "DT", "callr", "zip"
+))
+remotes::install_github("open-AIMS/CR_workflows", subdir = "pkg")
+```
+
+Then start the application:
+
+```r
+crworkflows::run_cr_app()
+```
+
+Two things are needed beyond the R packages above.
+
+- The [Quarto CLI](https://quarto.org/docs/get-started/), which produces the
+  report. It is a separate installation from the `quarto` R package.
+- For Bayesian analyses only, a C++ toolchain and two further packages. The
+  `drc` analyses installed above need neither. See
+  [Bayesian analyses](#bayesian-analyses) when you come to want one.
+
+Outputs are written to an `outputs/` directory under the working directory, or
+wherever the application's `root` argument points:
+
+```r
+crworkflows::run_cr_app(root = "~/cr_analyses")
+```
+
+There is no need to clone this repository. The workflow documents ship inside
+the package, so an installed package is enough to run an analysis or the
+application. Cloning is only needed in order to edit the documents.
+
+## The application
+
+```r
+crworkflows::run_cr_app()
+```
+
+It is a front end to the same Quarto workflow documents the command-line
+functions render, not a second implementation: every run renders the same
+document, so there is one analysis path and the report remains the record.
+
+A `drc` analysis returns in seconds. A `bayesnec` analysis takes eight to
+fifteen minutes and is submitted as a background job, so the interface stays
+usable and several samples can run at once. Bayesian fits use the `cmdstanr`
+backend, which is the faster of the two Stan interfaces. It still needs a C++
+toolchain: CmdStan compiles each model.
+
+The interface does not hide the decisions the analysis makes. The data checks
+gate the run, the model weights are shown beside the estimates, and the
+threshold estimate keeps its `NEC`, `NSEC` or `N(S)EC` label.
+
+The input csv must carry the columns the test type expects; the interface lists
+them for the selected test type before a file is uploaded. The shipped csv
+templates are a working example of each layout, and the path to the one for the
+test type in use is printed at the top of every report.
+
+## Test types
+
+| Group | Test type | Guideline | Response |
+|---|---|---|---|
+| aquatic | `algal_growth` | OECD 201 | continuous, positive |
+| aquatic | `daphnia_immobilisation` | OECD 202 | binomial with trials |
+| aquatic | `fish_larval_survival` | OECD 210 | binomial with trials |
+| aquatic | `daphnia_reproduction` | OECD 211 | count |
+| sublethal | `fertilisation_success` | ASTM E1563 | binomial with trials |
+| sublethal | `larval_development` | ASTM E724 | binomial with trials |
+| sublethal | `coral_bleaching` | none | proportion |
+| terrestrial | `earthworm_survival` | OECD 207 | binomial with trials |
+| terrestrial | `earthworm_reproduction` | OECD 222 | count |
+| terrestrial | `plant_emergence` | OECD 208 | binomial with trials |
+| terrestrial | `plant_growth` | OECD 208 | continuous, positive |
+| sediment | `amphipod_survival` | USEPA 600/R-94/025 | binomial with trials |
+| microbial | `bioluminescence_inhibition` | ISO 11348 | continuous, hormetic |
+| microbial | `nitrification_inhibition` | OECD 216 | continuous, hormetic |
 
 Two fitting engines are supported and each has its own set of workflow
 documents: Bayesian multi-model averaging via
@@ -14,79 +100,77 @@ documents: Bayesian multi-model averaging via
 regression via [`drc`](https://cran.r-project.org/package=drc). Neither engine
 is required to install the package; install the one in use.
 
-## Layout
+`docs/test-type-catalogue.md` gives the design, the endpoint and the model
+specification for each test type. `docs/engine-comparison.md` records where the
+two engines answer the same question and where they do not.
 
-```
-CR_workflows/
-├── pkg/                  installable R package `crworkflows`
-│   ├── R/                analysis functions and the test-type registry
-│   ├── data/             fourteen example datasets, one per test type
-│   ├── data-raw/         the scripts that generate the datasets and their docs
-│   ├── inst/extdata/     the same datasets as csv, as input format templates
-│   ├── inst/app/         the Shiny interface
-│   ├── inst/workflows/   the workflow documents, shipped with the package
-│   └── tests/testthat/   unit tests
-├── workflows/            end-to-end Quarto documents, edited in place
-│   ├── _templates/       one template per engine; the documents are built from these
-│   ├── _build_workflows.R  generates the 28 documents from the templates
-│   ├── _render.R         renders a document and files the report
-│   ├── _render_bayesnec.R  renders the bayesnec documents in bulk
-│   ├── _check_bayesnec.R   runs the bayesnec path without Quarto
-│   ├── bayesnec/<group>/<test_type>.qmd
-│   └── drc/<group>/<test_type>.qmd
-├── outputs/              everything a render produces; not tracked by git
-├── docs/                 the test-type catalogue, engine comparison and procedures
-├── prompts/              session logs
-└── superceded/           safety-net backups of untracked files before editing
-```
+---
 
-The workflow documents live in `workflows/` so that a laboratory can edit them
-for a particular test type without rebuilding anything. `_build_workflows.R`
-also copies them into `pkg/inst/workflows/`, so an installed package carries
-its own copy and can run an analysis without the project being cloned. Where
-both are present the project copy wins, so a local edit is what gets used.
+The rest of this page is for running the analysis from the console, or for
+changing how it works. The application covers the routine case without any of it.
 
-## Setting up
-
-The workflow documents are shipped inside the package, so installing it is
-enough to run an analysis or the interface. Cloning the project is only needed
-in order to edit the documents.
+## Running an analysis from the console
 
 ```r
-install.packages(c("ggplot2", "rlang", "dplyr", "readr", "quarto", "knitr"))
-install.packages("drc")                     # for the drc workflows
+library(crworkflows)
 
-# for the bayesnec workflows. cmdstanr is the default backend and is not on
-# CRAN, so it comes from the Stan project's own repository.
+# the shipped example data, to confirm the installation works
+cr_render_workflow("drc", "algal_growth")
+
+# a real sample
+cr_render_workflow(
+  "drc", "algal_growth",
+  sample_id = "S2026-0142",
+  data_file = "data/S2026-0142_algae.csv"
+)
+
+# a Bayesian analysis of the same sample
+cr_render_workflow(
+  "bayesnec", "algal_growth",
+  sample_id = "S2026-0142",
+  data_file = "data/S2026-0142_algae.csv"
+)
+```
+
+Analyses can also be run in the background, which is what the interface does and
+what a batch of samples needs:
+
+```r
+job <- cr_start_job("bayesnec", "algal_growth", sample_id = "S2026-0142")
+cr_job_status(job)
+cr_job_outputs(job)
+```
+
+Each render writes a set of files under `outputs/`, sharing the stem
+`<sample_id>_<test_type>_<engine>`: the figure, the estimate table, the
+serialised fit and the rendered report. Where more than one model contributed
+to the estimate, which is the default for both engines, a further file records
+the weight each candidate carried.
+
+The input csv must carry the columns the test type expects. The shipped csv in
+`pkg/inst/extdata/` is the template for each: for example
+`pkg/inst/extdata/fish_larval_survival.csv` has `conc`, `replicate`, `total`
+and `alive`. Column names and units come from the registry:
+
+```r
+crworkflows::cr_test_types()
+crworkflows::cr_test_type("fish_larval_survival")
+```
+
+## Bayesian analyses
+
+The `drc` workflows need no compiler toolchain. The `bayesnec` workflows compile
+Stan models, so they need a working C++ one, and two further packages:
+
+```r
+# cmdstanr is the default backend and is not on CRAN, so it comes from the
+# Stan project's own repository.
 install.packages("bayesnec")
 install.packages("cmdstanr",
   repos = c("https://stan-dev.r-universe.dev", getOption("repos"))
 )
 cmdstanr::install_cmdstan()                 # installs CmdStan itself
-
-install.packages("remotes")
-remotes::install_github("open-AIMS/CR_workflows", subdir = "pkg")
 ```
-
-Or, to edit the workflow documents as well as run them, install from a clone:
-
-```r
-devtools::install("pkg")   # from the project root
-```
-
-Rendering a report also needs the [Quarto CLI](https://quarto.org/docs/get-started/),
-which is a separate installation from the `quarto` R package.
-
-Outputs are written to an `outputs/` directory. Inside a clone that is the
-project's own `outputs/`; elsewhere it is created under the working directory,
-or wherever `root` points:
-
-```r
-crworkflows::cr_render_workflow("drc", "algal_growth", root = "~/cr_analyses")
-```
-
-The `drc` workflows need nothing beyond a plain R installation. The `bayesnec`
-workflows compile Stan models, so they need a working C++ toolchain.
 
 ### Checking the Stan toolchain
 
@@ -147,106 +231,12 @@ requires Rtools 4.5**, and an earlier Rtools will not substitute for it. Where
 will attempt to repair it, and `cmdstanr::install_cmdstan()` installs CmdStan
 itself.
 
-Once the toolchain passes, `workflows/_check_bayesnec.R` runs the analysis path
-for one test type end to end without needing the Quarto CLI:
+From a clone, `workflows/_check_bayesnec.R` runs the analysis path for one test
+type end to end without needing the Quarto CLI:
 
 ```bash
 Rscript workflows/_check_bayesnec.R algal_growth
 ```
-
-## The interface
-
-For routine use there is a Shiny application:
-
-```r
-crworkflows::run_cr_app()
-```
-
-It takes a csv, shows the data checks before anything is fitted, runs the
-analysis, and hands back the report and outputs. It is a front end to the same
-Quarto workflow documents described below, not a second implementation: every
-run renders the same document, so there is one analysis path and the report
-remains the record.
-
-A `drc` analysis returns in seconds. A `bayesnec` analysis takes eight to
-fifteen minutes and is submitted as a background job, so the interface stays
-usable and several samples can run at once. Bayesian fits use the `cmdstanr`
-backend, which is the faster of the two Stan interfaces. It still needs a C++
-toolchain: CmdStan compiles each model.
-
-The interface does not hide the decisions the analysis makes. The data checks
-gate the run, the model weights are shown beside the estimates, and the
-threshold estimate keeps its `NEC`, `NSEC` or `N(S)EC` label.
-
-## Running an analysis from the console
-
-```r
-library(crworkflows)
-
-# the shipped example data, to confirm the installation works
-cr_render_workflow("drc", "algal_growth")
-
-# a real sample
-cr_render_workflow(
-  "drc", "algal_growth",
-  sample_id = "S2026-0142",
-  data_file = "data/S2026-0142_algae.csv"
-)
-
-# a Bayesian analysis of the same sample
-cr_render_workflow(
-  "bayesnec", "algal_growth",
-  sample_id = "S2026-0142",
-  data_file = "data/S2026-0142_algae.csv"
-)
-```
-
-Analyses can also be run in the background, which is what the interface does and
-what a batch of samples needs:
-
-```r
-job <- cr_start_job("bayesnec", "algal_growth", sample_id = "S2026-0142")
-cr_job_status(job)
-cr_job_outputs(job)
-```
-
-Each render writes four files under `outputs/`, sharing the stem
-`<sample_id>_<test_type>_<engine>`: the figure, the estimate table, the
-serialised fit and the rendered report.
-
-The input csv must carry the columns the test type expects. The shipped csv in
-`pkg/inst/extdata/` is the template for each: for example
-`pkg/inst/extdata/fish_larval_survival.csv` has `conc`, `replicate`, `total`
-and `alive`. Column names and units come from the registry, which is printed
-at the top of every report:
-
-```r
-crworkflows::cr_test_types()
-crworkflows::cr_test_type("fish_larval_survival")
-```
-
-## Test types
-
-| Group | Test type | Guideline | Response |
-|---|---|---|---|
-| aquatic | `algal_growth` | OECD 201 | continuous, positive |
-| aquatic | `daphnia_immobilisation` | OECD 202 | binomial with trials |
-| aquatic | `fish_larval_survival` | OECD 210 | binomial with trials |
-| aquatic | `daphnia_reproduction` | OECD 211 | count |
-| sublethal | `fertilisation_success` | ASTM E1563 | binomial with trials |
-| sublethal | `larval_development` | ASTM E724 | binomial with trials |
-| sublethal | `coral_bleaching` | none | proportion |
-| terrestrial | `earthworm_survival` | OECD 207 | binomial with trials |
-| terrestrial | `earthworm_reproduction` | OECD 222 | count |
-| terrestrial | `plant_emergence` | OECD 208 | binomial with trials |
-| terrestrial | `plant_growth` | OECD 208 | continuous, positive |
-| sediment | `amphipod_survival` | USEPA 600/R-94/025 | binomial with trials |
-| microbial | `bioluminescence_inhibition` | ISO 11348 | continuous, hormetic |
-| microbial | `nitrification_inhibition` | OECD 216 | continuous, hormetic |
-
-`docs/test-type-catalogue.md` gives the design, the endpoint and the model
-specification for each. `docs/engine-comparison.md` records where the two
-engines answer the same question and where they do not.
 
 ## The example datasets are simulated
 
@@ -262,6 +252,47 @@ attr(crworkflows::algal_growth, "truth")
 They exist so that each workflow can be run end to end before a laboratory
 substitutes its own data, and so that the tests have data with known
 properties. They are not reference data and must not be cited as such.
+
+## Working from a clone
+
+Cloning is needed only in order to edit the workflow documents. Install from the
+clone with:
+
+```r
+devtools::install("pkg")   # from the project root
+```
+
+Inside a clone the outputs go to the project's own `outputs/` directory.
+
+```
+CR_workflows/
+├── pkg/                  installable R package `crworkflows`
+│   ├── R/                analysis functions and the test-type registry
+│   ├── data/             fourteen example datasets, one per test type
+│   ├── data-raw/         the scripts that generate the datasets and their docs
+│   ├── inst/extdata/     the same datasets as csv, as input format templates
+│   ├── inst/app/         the Shiny interface
+│   ├── inst/workflows/   the workflow documents, shipped with the package
+│   └── tests/testthat/   unit tests
+├── workflows/            end-to-end Quarto documents, edited in place
+│   ├── _templates/       one template per engine; the documents are built from these
+│   ├── _build_workflows.R  generates the 28 documents from the templates
+│   ├── _render.R         renders a document and files the report
+│   ├── _render_bayesnec.R  renders the bayesnec documents in bulk
+│   ├── _check_bayesnec.R   runs the bayesnec path without Quarto
+│   ├── bayesnec/<group>/<test_type>.qmd
+│   └── drc/<group>/<test_type>.qmd
+├── outputs/              everything a render produces; not tracked by git
+├── docs/                 the test-type catalogue, engine comparison and procedures
+├── prompts/              session logs
+└── superceded/           safety-net backups of untracked files before editing
+```
+
+The workflow documents live in `workflows/` so that a laboratory can edit them
+for a particular test type without rebuilding anything. `_build_workflows.R`
+also copies them into `pkg/inst/workflows/`, so an installed package carries
+its own copy and can run an analysis without the project being cloned. Where
+both are present the project copy wins, so a local edit is what gets used.
 
 ## Changing the analysis
 

@@ -29,10 +29,10 @@ Suggests:
     knitr,
     pkgbuild,
     quarto,
-    readr,
     rstan,
     shiny,
     testthat (>= 3.0.0),
+    tidyr,
     withr,
     zip
 Additional_repositories: https://stan-dev.r-universe.dev

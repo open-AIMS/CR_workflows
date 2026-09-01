@@ -19,7 +19,7 @@ Intervals are credible intervals from the posterior of the averaged prediction.
 ## What is the same
 
 Both workflows read the same data, apply the same validation checks, produce
-the same four output files under the same naming stem, and report ECx
+the same output files under the same naming stem, and report ECx
 referenced to the fitted control response. That last point is a deliberate
 choice: the `drc` workflow converts the control-referenced target onto the
 scale drc's calculation expects, rather than reporting an ECx referenced to the
@@ -57,7 +57,7 @@ setting `params$model` to `"nec"`, and record that restriction in the report.
 
 The `drc` workflow reports no threshold estimate of any kind.
 
-**Both engines now average over their candidate set**, so both report intervals
+**Both engines average over their candidate set**, so both report intervals
 that include the uncertainty in the choice of curve form. The weighting schemes
 differ and are not the same quantity:
 
@@ -86,12 +86,40 @@ interval conditional on the selected function being the right one.
 **The likelihood may differ.** `bayesnec` uses the family recorded in the
 registry: Gamma for positive continuous responses, binomial for counts out of
 trials, negative binomial for counts, Beta for proportions. `drc` fits the
-error structure named in `drc_type`, which for the continuous test types is
-Gaussian. Where the response variance grows with the mean, as it does for a
-growth or biomass endpoint spanning two orders of magnitude, the Gaussian fit
-is influenced more by the high-response observations than the Gamma fit is, and
-the two engines will not return the same point estimate. This is a difference
-in the model, not an error in either.
+error structure named in `drc_type`. This differs from the `bayesnec` family for
+two groups of test types, in different ways.
+
+For the **continuous** test types `drc` fits a Gaussian error where `bayesnec`
+fits a Gamma. Where the response variance grows with the mean, as it does for a
+growth or biomass endpoint spanning two orders of magnitude, the Gaussian fit is
+influenced more by the high-response observations than the Gamma fit is, and the
+two engines will not return the same point estimate. This is a difference in the
+model, not an error in either.
+
+For the **count** test types, `daphnia_reproduction` and
+`earthworm_reproduction`, `drc` fits `type = "Poisson"` where `bayesnec` fits a
+negative binomial. A Poisson fixes the variance equal to the mean; a negative
+binomial estimates it. Where the counts are more variable than a Poisson allows,
+which is usual for a reproduction endpoint, the `drc` point estimate is
+unaffected but its standard errors, and every interval built from them, are too
+narrow by roughly the square root of the dispersion.
+
+This is not a small effect on the shipped example data, which are generated with
+a negative binomial of size 18 and 12 respectively. `cr_drc_dispersion()` reports
+2.77 for `daphnia_reproduction` and 3.32 for `earthworm_reproduction`. On
+`daphnia_reproduction` the `drc` EC50 is 0.350 with a delta-method interval of
+0.309 to 0.391, a width of 0.082; scaling by the square root of the dispersion
+gives 0.137, so the reported interval is about forty per cent narrower than the
+data support. The binomial test types sit between 0.63 and 1.60, so the same
+concern does not arise for them.
+
+The `drc` workflow therefore reports the dispersion of the fit alongside the
+residual plot. It is reported rather than used to widen the interval, because
+rescaling an interval is a change to the model and belongs in the model
+specification. Where it is well above one, the reported `drc` interval is
+conditional on the Poisson assumption and should be recorded as such, and the
+`bayesnec` workflow is the one that estimates the extra variation rather than
+assuming it away.
 
 ## The link function
 
@@ -114,6 +142,15 @@ test type in the registry, so this cannot regress unnoticed.
 
 ## Known numerical behaviour
 
+An ECx level whose target lies outside the range of the fitted curve has no
+solution. A curve that plateaus above half the control determines EC10 and EC20
+and leaves only EC50 unreachable, so that level alone is returned as `NA` with
+the reason in its `interval` column and a warning is raised. The levels that
+were estimated are still reported, and the workflow still produces a report.
+Where no level is reachable at all, which is what an inverted response column
+gives, every row is `NA` and the warning says so; `check_cr_data()` names the
+cause.
+
 `drc::ED()` fails inside `uniroot()` when a Brain-Cousens hormesis term is
 weakly determined: the root-finding interval it chooses does not bracket the
 target, and the call errors rather than returning that level as `NA`. This was
@@ -128,6 +165,26 @@ not a convergence failure of the model.
 on the hormetic example data it returned near-identical concentrations for
 EC10, EC20 and EC50, which are not credible. The conversion to drc's relative
 scale is used instead.
+
+`drc`'s delta-method standard error is not always computable. On the
+`daphnia_immobilisation` example data it is `NaN` over most of the tested range
+for `LL.3`, and in scattered blocks for `W2.3`, two of the four candidates in
+that set. The point estimates are unaffected; only the standard error is
+missing.
+
+This matters for the model-averaged figure, because the Buckland combination
+cannot use a candidate whose standard error is missing. Combining point by point
+would drop a different subset of candidates at each concentration, so the drawn
+curve would be averaged over between two and four candidates depending on where
+along the axis it was read. The candidate set is therefore fixed for the whole
+curve: one usable at every concentration is kept, one that is not is dropped
+throughout, and a warning names it and gives its combined weight. The figure
+caption states how many of the candidates the curve was averaged over.
+
+The estimates in the results table are computed on a different path, from
+`drc::ED()` for each candidate, and are unaffected. Where a candidate is missing
+from one of those, the `interval` column already records how many contributed to
+that row.
 
 ## Which to run
 

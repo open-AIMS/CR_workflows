@@ -45,3 +45,16 @@ test_that("the drc predict wrapper does not emit the drc recycling warning", {
   fit <- fit_cr_drc(algal_growth, "algal_growth", validate = FALSE)
   expect_silent(plot_cr_fit(fit, algal_growth, "algal_growth"))
 })
+
+test_that("a grid of one concentration does not break the averaged plot", {
+  # drc's predict method drops the dimensions of its result for a single row,
+  # which every column operation downstream then fails on.
+  skip_if_not_installed("drc")
+  ma <- suppressWarnings(fit_cr_drc_ma(algal_growth, "algal_growth", validate = FALSE))
+  for (n in c(1L, 2L)) {
+    p <- suppressWarnings(plot_cr_fit(ma, algal_growth, "algal_growth", n_grid = n))
+    pred <- p$layers[[3]]$data
+    expect_equal(nrow(pred), n)
+    expect_true(all(is.finite(pred$.fit)))
+  }
+})

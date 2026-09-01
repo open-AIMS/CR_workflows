@@ -12,16 +12,29 @@ cr_ecx(fit, ecx_val = NULL, test_type = NULL, level = 0.95, ...)
 \item{ecx_val}{ECx levels as percentages. Defaults to the registry value for
 the test type.}
 
-\item{test_type}{Test-type identifier. Only needed for \code{drc} fits not created
-by \code{\link[=fit_cr_drc]{fit_cr_drc()}}, which records it as an attribute.}
+\item{test_type}{Test-type identifier. For \code{\link[=cr_ecx]{cr_ecx()}} this is only needed for
+\code{drc} fits not created by \code{\link[=fit_cr_drc]{fit_cr_drc()}}, which records it as an attribute;
+\code{\link[=cr_results_table]{cr_results_table()}} always requires it, because the identifying columns it
+adds are read from the registry.}
 
 \item{level}{Interval width. Defaults to 0.95.}
 
-\item{...}{Passed to the underlying engine function.}
+\item{...}{Passed to the underlying engine function. The \code{drc} methods also
+accept \code{reference}, which selects what the ECx is referenced to: \code{"control"}
+(the default) references it to the fitted control response, which is the
+convention in ecotoxicological reporting and what \code{bayesnec::ecx()} returns;
+\code{"range"} references it to the fitted response range, which is drc's own
+convention. The two coincide wherever the fitted lower limit is zero.}
 }
 \value{
-A data frame with columns \code{engine}, \code{estimate_type}, \code{level},
-\code{estimate}, \code{lower}, \code{upper} and \code{interval}.
+A data frame with one row per requested level and columns \code{engine},
+\code{estimate_type}, \code{level}, \code{estimate}, \code{se}, \code{lower}, \code{upper} and \code{interval}.
+\code{se} is \code{NA} for \code{bayesnec} fits, whose interval is a posterior quantile
+rather than a standard error, and is present so that both engines return one
+schema. A level whose target lies outside the range of the fitted curve has
+no solution; it is returned as \code{NA} with the reason in its \code{interval}, and a
+warning is raised, so that the levels that were estimated are still
+available.
 }
 \description{
 Returns ECx estimates in one common format regardless of which engine

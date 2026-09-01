@@ -16,8 +16,10 @@ cr_results_table(
 \arguments{
 \item{fit}{A \code{bayesnecfit}, \code{bayesmanecfit} or \code{drc} object.}
 
-\item{test_type}{Test-type identifier. Only needed for \code{drc} fits not created
-by \code{\link[=fit_cr_drc]{fit_cr_drc()}}, which records it as an attribute.}
+\item{test_type}{Test-type identifier. For \code{\link[=cr_ecx]{cr_ecx()}} this is only needed for
+\code{drc} fits not created by \code{\link[=fit_cr_drc]{fit_cr_drc()}}, which records it as an attribute;
+\code{\link[=cr_results_table]{cr_results_table()}} always requires it, because the identifying columns it
+adds are read from the registry.}
 
 \item{ecx_val}{ECx levels as percentages. Defaults to the registry value for
 the test type.}
@@ -26,7 +28,12 @@ the test type.}
 
 \item{level}{Interval width. Defaults to 0.95.}
 
-\item{...}{Passed to the underlying engine function.}
+\item{...}{Passed to the underlying engine function. The \code{drc} methods also
+accept \code{reference}, which selects what the ECx is referenced to: \code{"control"}
+(the default) references it to the fitted control response, which is the
+convention in ecotoxicological reporting and what \code{bayesnec::ecx()} returns;
+\code{"range"} references it to the fitted response range, which is drc's own
+convention. The two coincide wherever the fitted lower limit is zero.}
 }
 \value{
 A data frame.

@@ -26,7 +26,8 @@ set.seed(seed)
 tt <- cr_test_type(test_type)
 cat("test type      : ", tt$id, " (", tt$label, ")\n", sep = "")
 cat("family         : ", tt$bnec_family, "\n", sep = "")
-cat("candidate models: ", model %||% tt$bnec_model, "\n\n", sep = "")
+cat("candidate models: ", if (is.null(model)) tt$bnec_model else model, "\n\n",
+    sep = "")
 
 cr_data <- get(test_type, envir = asNamespace("crworkflows"))
 

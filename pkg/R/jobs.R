@@ -146,7 +146,10 @@ cr_bundle_outputs <- function(jobs, zipfile = tempfile(fileext = ".zip")) {
   # The outputs of one analysis live in four different directories. They are
   # staged into one flat folder first so the zip opens to a readable list rather
   # than a deep outputs/figures/... tree, and so that zip() has a single root.
-  stage <- file.path(tempdir(), paste0("cr_bundle_", as.integer(Sys.time())))
+  # tempfile() rather than a name built from Sys.time(): two bundles requested in
+  # the same second would otherwise share a staging directory, and the first to
+  # finish would delete the second's files on exit.
+  stage <- tempfile("cr_bundle_")
   dir.create(stage, recursive = TRUE, showWarnings = FALSE)
   on.exit(unlink(stage, recursive = TRUE), add = TRUE)
   file.copy(files, file.path(stage, basename(files)), overwrite = TRUE)

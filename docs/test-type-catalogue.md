@@ -8,7 +8,7 @@ The design given for each test type is the design of the shipped example
 dataset, which follows the guideline but is simulated, not measured. It is a
 guide to the expected input format, not a specification of the test.
 
-Fourteen test types across 5 groups: aquatic, sublethal, terrestrial, sediment, microbial.
+fourteen test types across five groups: aquatic, sublethal, terrestrial, sediment, microbial.
 
 # Aquatic
 

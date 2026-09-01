@@ -58,5 +58,9 @@ lines <- c(
   unlist(lapply(seq_len(nrow(reg)), function(i) block(reg[i, , drop = FALSE])))
 )
 
-writeLines(lines, file.path(pkg_root, "R", "data.R"))
+# LF on every platform, so that running this on Windows and on Linux produces
+# the same file rather than one that differs only in its line endings.
+con <- file(file.path(pkg_root, "R", "data.R"), open = "wb")
+writeLines(lines, con, sep = "\n")
+close(con)
 message("wrote R/data.R (", length(lines), " lines)")

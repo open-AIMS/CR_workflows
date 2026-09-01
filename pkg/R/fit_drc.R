@@ -117,6 +117,69 @@ compare_drc_models <- function(data, test_type, validate = FALSE, ...) {
   out[order(out$AIC, na.last = TRUE), , drop = FALSE]
 }
 
+#' Dispersion of a drc fit relative to its assumed error structure
+#'
+#' Returns the Pearson dispersion of a fit: the mean squared standardised
+#' residual, which is one where the assumed error structure describes the
+#' variation in the data and greater than one where the data are more variable
+#' than it allows.
+#'
+#' This matters for the count test types. `drc` fits them with `type = "Poisson"`,
+#' which fixes the variance equal to the mean, whereas the `bayesnec` engine uses
+#' a negative binomial, which estimates it. Where the data are more variable than
+#' a Poisson allows, the `drc` standard errors, and every interval built from
+#' them, are too narrow by roughly the square root of the dispersion. The
+#' estimates themselves are unaffected. On the two shipped count example datasets
+#' the dispersion is 2.8 and 3.3, so the intervals are about forty per cent
+#' narrower than the data support.
+#'
+#' The value is reported rather than used to widen anything, because rescaling
+#' the interval is a change to the model that belongs in the model
+#' specification.
+#'
+#' @param fit A `drc` object, as returned by [fit_cr_drc()].
+#' @inheritParams check_cr_data
+#' @return A single number, or `NA` where the response type has no fixed
+#'   variance assumption to test: the continuous test types estimate a scale
+#'   parameter, so their dispersion is one by construction.
+#' @export
+#' @examples
+#' \donttest{
+#' fit <- fit_cr_drc(daphnia_reproduction, "daphnia_reproduction", validate = FALSE)
+#' cr_drc_dispersion(fit, "daphnia_reproduction")
+#' }
+cr_drc_dispersion <- function(fit, test_type = NULL) {
+  require_engine("drc")
+  test_type <- test_type %||% attr(fit, "cr_test_type")
+  if (is.null(test_type)) {
+    stop("This drc fit does not record a test type. Pass test_type, or fit ",
+      "with fit_cr_drc(), which records it.",
+      call. = FALSE
+    )
+  }
+  tt <- cr_test_type(test_type)
+  # A Gaussian fit estimates its own scale, so the ratio is one by construction
+  # and says nothing. Only the likelihoods with a variance fixed by the mean --
+  # Poisson and binomial -- can be over-dispersed relative to their assumption.
+  if (!tt$response_type %in% c("count", "binomial_trials")) {
+    return(NA_real_)
+  }
+  mu <- stats::fitted(fit)
+  y <- mu + stats::residuals(fit)
+  v <- switch(tt$response_type,
+    count = mu,
+    # drc fits binomial data on the proportion scale with the trials as weights,
+    # so the variance of the fitted proportion is p(1 - p)/n.
+    binomial_trials = mu * (1 - mu) / fit$dataList$weights
+  )
+  keep <- is.finite(v) & v > 0
+  df <- sum(keep) - length(stats::coef(fit))
+  if (df <= 0) {
+    return(NA_real_)
+  }
+  sum((y[keep] - mu[keep])^2 / v[keep]) / df
+}
+
 #' Construct a drc mean function by name
 #'
 #' drc mean functions read their own name out of `match.call()`, so they must be

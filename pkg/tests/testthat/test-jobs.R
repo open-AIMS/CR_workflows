@@ -5,10 +5,41 @@ skip_on_cran()
 
 # These render real documents, so they need the project tree rather than the
 # installed package alone. Skipped where the interface is not being worked on.
+#
+# The render happens in a background R process, which loads the *installed*
+# crworkflows rather than the working tree, so these are the one group of tests
+# that does not exercise the code under development. When a change touches both
+# the package and the workflow templates -- a new function called from a
+# template, say -- the render fails inside the child process for a reason that
+# has nothing to do with the change: the installed build predates it. That
+# arrived as "the analysis process exited without a message", which reads as a
+# fault in the change rather than in the environment, so it is detected up front
+# and skipped with the reason named.
+
+# TRUE where the installed package exports everything the working tree does, so
+# a document rendered against the installed build will find what it calls.
+installed_build_is_current <- function() {
+  ours <- getNamespaceExports("crworkflows")
+  theirs <- tryCatch(
+    callr::r(function() {
+      loadNamespace("crworkflows")
+      getNamespaceExports("crworkflows")
+    }),
+    error = function(e) character(0)
+  )
+  length(theirs) > 0 && !length(setdiff(ours, theirs))
+}
+
 project_root <- function() {
   r <- tryCatch(cr_project_root(), error = function(e) NA_character_)
   if (is.na(r) || !dir.exists(file.path(r, "workflows"))) {
     skip("Project tree with workflows/ not available")
+  }
+  if (!installed_build_is_current()) {
+    skip(paste(
+      "The installed crworkflows is older than the working tree, and the render",
+      "runs against the installed one. Reinstall the package to run these."
+    ))
   }
   r
 }

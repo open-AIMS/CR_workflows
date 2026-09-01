@@ -1,0 +1,12 @@
+# Line endings are normalised to LF in the repository. Without this the files
+# written by the generator scripts -- the 28 workflow documents and their
+# shipped copies, the csv templates, pkg/R/data.R, the manifest and the test-type
+# catalogue -- carry the line endings of whichever platform last ran the
+# generator, so re-running it on a different machine produces a diff that is
+# nothing but line endings and hides the change that was actually made.
+* text=auto eol=lf
+
+# Binary, left exactly as written.
+*.rda binary
+*.rds binary
+*.png binary

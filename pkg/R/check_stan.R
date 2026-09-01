@@ -141,15 +141,20 @@ stan_stage_toolchain <- function(backend) {
     return(list(status = "fail", detail = "Package 'pkgbuild' is needed for the rstan toolchain check."))
   }
   # has_build_tools() prints its own warning when tools are missing, which is
-  # duplicated by the detail below.
+  # duplicated by the detail below. It can also throw outright. A diagnostic
+  # whose purpose is to report a broken toolchain must not itself fail on one,
+  # so the verdict is carried out of the tryCatch rather than read afterwards
+  # from a variable that the failing branch never assigns.
   ok <- tryCatch(
-    suppressWarnings(utils::capture.output(
-      val <- pkgbuild::has_build_tools(debug = FALSE),
-      type = "message"
-    )),
-    error = function(e) NULL
+    {
+      suppressWarnings(utils::capture.output(
+        val <- pkgbuild::has_build_tools(debug = FALSE),
+        type = "message"
+      ))
+      isTRUE(val)
+    },
+    error = function(e) FALSE
   )
-  ok <- isTRUE(val)
   if (isTRUE(ok)) {
     list(status = "pass", detail = "pkgbuild reports build tools available.")
   } else {
