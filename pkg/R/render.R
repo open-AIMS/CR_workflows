@@ -29,8 +29,8 @@ cr_workflow_path <- function(engine = c("drc", "bayesnec"), test_type,
 #' @param data_file Path to a csv of the sample data, or `NULL` to use the
 #'   shipped example dataset for the test type.
 #' @param backend For the bayesnec engine, the Stan interface. `"cmdstanr"` is
-#'   the default because it is faster than `rstan` and does not need a matching
-#'   Rtools on Windows.
+#'   the default because it is the faster of the two. Both compile Stan models
+#'   and so both need a C++ toolchain.
 #' @param quiet Whether to suppress Quarto's progress output.
 #' @param ... Further parameters passed to the document, for example
 #'   `average = FALSE` or `save_fit = FALSE`.

@@ -27,8 +27,8 @@ shipped example dataset for the test type.}
 \item{root}{Project root. Defaults to \code{\link[=cr_project_root]{cr_project_root()}}.}
 
 \item{backend}{For the bayesnec engine, the Stan interface. \code{"cmdstanr"} is
-the default because it is faster than \code{rstan} and does not need a matching
-Rtools on Windows.}
+the default because it is the faster of the two. Both compile Stan models
+and so both need a C++ toolchain.}
 
 \item{...}{Further parameters passed to the document, for example
 \code{average = FALSE} or \code{save_fit = FALSE}.}

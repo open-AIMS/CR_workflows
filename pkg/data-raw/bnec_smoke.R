@@ -6,8 +6,8 @@
 # check the specification (family, link, formula, model group); this script
 # checks that the specification fits.
 #
-# Requires a working C++ toolchain. Run under WSL or Linux:
-#   Rscript pkg/data-raw/bnec_smoke_wsl.R
+# Requires a working Stan toolchain.
+#   Rscript pkg/data-raw/bnec_smoke.R
 
 library(crworkflows)
 

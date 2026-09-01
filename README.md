@@ -29,6 +29,8 @@ CR_workflows/
 │   ├── _templates/       one template per engine; the documents are built from these
 │   ├── _build_workflows.R  generates the 28 documents from the templates
 │   ├── _render.R         renders a document and files the report
+│   ├── _render_bayesnec.R  renders the bayesnec documents in bulk
+│   ├── _check_bayesnec.R   runs the bayesnec path without Quarto
 │   ├── bayesnec/<group>/<test_type>.qmd
 │   └── drc/<group>/<test_type>.qmd
 ├── outputs/              everything a render produces; not tracked by git
@@ -59,26 +61,18 @@ toolchain. On Windows this means the version of Rtools matching the installed R:
 it. Check with `pkgbuild::has_build_tools(debug = TRUE)` before the first fit.
 The `drc` workflows have no such requirement and run on a plain R installation.
 
-Where Windows has no matching Rtools, the Bayesian fits can be run under WSL,
-which has an ordinary `gcc` toolchain. `C:/Rworking` and
-`/home/rfisher/Rworking_wsl` are the same location, so no files need copying:
+To confirm the Bayesian path works before relying on it, run
+`workflows/_check_bayesnec.R`, which makes the same sequence of calls the
+workflow document makes and writes the same figure, table and fit. It does not
+render the report, so it needs only the toolchain and not the Quarto CLI:
 
 ```bash
-wsl -d Debian
-cd /home/rfisher/Rworking_wsl/CR_workflows
-R CMD INSTALL pkg
 Rscript workflows/_check_bayesnec.R algal_growth
 ```
 
-`workflows/_check_bayesnec.R` runs the same sequence of calls the workflow
-document makes and writes the same figure, table and fit, but it does not
-render the report, which needs the Quarto CLI. Use it to verify the Bayesian
-analysis path where only the toolchain is available.
-
 ## The interface
 
-For routine use there is a Shiny application, which runs on Windows and under
-WSL:
+For routine use there is a Shiny application:
 
 ```r
 crworkflows::run_cr_app()
@@ -93,8 +87,8 @@ remains the record.
 A `drc` analysis returns in seconds. A `bayesnec` analysis takes eight to
 fifteen minutes and is submitted as a background job, so the interface stays
 usable and several samples can run at once. Bayesian fits use the `cmdstanr`
-backend, which is faster than `rstan` and avoids the Rtools requirement on
-Windows.
+backend, which is the faster of the two Stan interfaces. It still needs a C++
+toolchain: CmdStan compiles each model.
 
 The interface does not hide the decisions the analysis makes. The data checks
 gate the run, the model weights are shown beside the estimates, and the

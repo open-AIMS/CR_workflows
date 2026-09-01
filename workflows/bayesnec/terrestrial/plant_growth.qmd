@@ -116,10 +116,10 @@ response.
 
 `params$backend` selects the Stan interface. Leaving it unset uses the `brms`
 default, `rstan`. Setting it to `"cmdstanr"` uses CmdStan instead, which is the
-route where the installed R has no matching Rtools. The two are different
-implementations of the same sampler and are not guaranteed to reproduce each
-other draw for draw from the same seed, so the backend is recorded with the
-other provenance below.
+faster of the two. Both compile Stan models and so both need a C++ toolchain.
+The two are different implementations of the same sampler and are not
+guaranteed to reproduce each other draw for draw from the same seed, so the
+backend is recorded with the other provenance below.
 
 ```{r fit}
 #| results: hide

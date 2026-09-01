@@ -1,19 +1,16 @@
-# Render the bayesnec workflow documents under WSL using the cmdstanr backend.
+# Render the bayesnec workflow documents in bulk, using the cmdstanr backend.
 #
-# The bayesnec documents need a Stan toolchain and the Quarto CLI. Where Windows
-# has no Rtools matching the installed R, both are available under WSL, and
-# `C:/Rworking` and `/home/rfisher/Rworking_wsl` are the same location, so no
-# files are copied.
+# Needs a working Stan toolchain and the Quarto CLI.
 #
-# These renders are slow: each document fits a whole candidate set, which took
-# about 16 minutes for algal_growth at twelve models. The hormetic test types
-# use the larger `all` group and take longer. Run the whole set only when there
-# is time for it.
+# These renders are slow: each document fits a whole candidate set, which takes
+# eight to fifteen minutes per test type. The hormetic test types use the larger
+# `all` model group and take longest. Run the whole set only when there is time
+# for it.
 #
-# Usage, from the project root inside WSL:
-#   Rscript workflows/_render_bayesnec_wsl.R                   # every test type
-#   Rscript workflows/_render_bayesnec_wsl.R algal_growth      # one test type
-#   Rscript workflows/_render_bayesnec_wsl.R algal_growth coral_bleaching
+# Usage, from the project root:
+#   Rscript workflows/_render_bayesnec.R                   # every test type
+#   Rscript workflows/_render_bayesnec.R algal_growth      # one test type
+#   Rscript workflows/_render_bayesnec.R algal_growth coral_bleaching
 
 source("workflows/_render.R")
 source("pkg/R/test_types.R")
