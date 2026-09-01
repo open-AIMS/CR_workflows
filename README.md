@@ -55,19 +55,29 @@ in order to edit the documents.
 ```r
 install.packages(c("ggplot2", "rlang", "dplyr", "readr", "quarto", "knitr"))
 install.packages("drc")                     # for the drc workflows
-install.packages("bayesnec")                # for the bayesnec workflows
 
+# for the bayesnec workflows. cmdstanr is the default backend and is not on
+# CRAN, so it comes from the Stan project's own repository.
+install.packages("bayesnec")
+install.packages("cmdstanr",
+  repos = c("https://stan-dev.r-universe.dev", getOption("repos"))
+)
+cmdstanr::install_cmdstan()                 # installs CmdStan itself
+
+install.packages("remotes")
 remotes::install_github("open-AIMS/CR_workflows", subdir = "pkg")
 ```
 
-Rendering a report also needs the [Quarto CLI](https://quarto.org/docs/get-started/),
-which is separate from the `quarto` R package.
-
-From a clone instead:
+The repository is currently **private**, so `install_github()` needs a GitHub
+token with access to it. Set one with `usethis::create_github_token()` and
+`gitcreds::gitcreds_set()`, or install from a local clone instead:
 
 ```r
 devtools::install("pkg")   # from the project root
 ```
+
+Rendering a report also needs the [Quarto CLI](https://quarto.org/docs/get-started/),
+which is a separate installation from the `quarto` R package.
 
 Outputs are written to an `outputs/` directory. Inside a clone that is the
 project's own `outputs/`; elsewhere it is created under the working directory,
