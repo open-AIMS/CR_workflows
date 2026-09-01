@@ -249,7 +249,12 @@ for (nm in names(datasets)) {
   assign(nm, d)
   save(list = nm, file = file.path(pkg_root, "data", paste0(nm, ".rda")),
        compress = "bzip2", version = 3)
-  utils::write.csv(d, file.path(pkg_root, "inst", "extdata", paste0(nm, ".csv")),
-                   row.names = FALSE)
+  # Written through a binary connection so the csv templates are identical
+  # whichever platform generated them. eol = "\n" alone is not enough: on Windows
+  # write.csv() opens a text connection, which translates it back to CRLF.
+  csv_con <- file(file.path(pkg_root, "inst", "extdata", paste0(nm, ".csv")),
+                  open = "wb")
+  utils::write.csv(d, csv_con, row.names = FALSE, eol = "\n")
+  close(csv_con)
   message("wrote ", nm, ": ", nrow(d), " rows")
 }

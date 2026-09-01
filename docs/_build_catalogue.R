@@ -87,8 +87,12 @@ build_catalogue <- function(root = ".") {
     ""
   )
 
+  # LF on every platform, so that running this on Windows and on Linux produces
+  # the same file rather than one that differs only in its line endings.
   out <- file.path(root, "docs", "test-type-catalogue.md")
-  writeLines(c(header, body), out)
+  con <- file(out, open = "wb")
+  writeLines(c(header, body), con, sep = "\n")
+  close(con)
   message("wrote ", out)
   invisible(out)
 }

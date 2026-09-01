@@ -57,7 +57,7 @@ build_workflows <- function(root = ".", force = FALSE) {
         }
       }
 
-      writeLines(content, out_path)
+      write_lf(content, out_path)
       rows[[length(rows) + 1]] <- data.frame(
         path = relative_path(out_path, root), engine = engine,
         test_type = r$id, template_hash = tmpl_hash,
@@ -66,8 +66,12 @@ build_workflows <- function(root = ".", force = FALSE) {
     }
   }
 
+  # A binary connection, not eol = "\n" alone: on Windows write.csv() opens a
+  # text connection, which translates the separator straight back to CRLF.
   out <- do.call(rbind, rows)
-  utils::write.csv(out, manifest_path, row.names = FALSE)
+  con <- file(manifest_path, open = "wb")
+  utils::write.csv(out, con, row.names = FALSE, eol = "\n")
+  close(con)
 
   # The documents are copied into the package as well as written to the editable
   # tree. Shipping them means an installed package can run an analysis on its
@@ -97,12 +101,30 @@ ship_workflows <- function(root = ".") {
   invisible(dest)
 }
 
+# Write a character vector to a file with LF line endings on every platform.
+#
+# writeLines() uses the platform convention, which puts CRLF in the generated
+# documents on Windows and LF on Linux. The repository normalises to LF on
+# commit, so that difference does not reach it, but it does reach the content
+# hashes below and it makes every working tree on Windows differ from what is
+# committed.
+write_lf <- function(x, path) {
+  con <- file(path, open = "wb")
+  on.exit(close(con), add = TRUE)
+  writeLines(x, con, sep = "\n")
+}
+
 # A content hash, used only to detect hand edits. tools::md5sum() works on files
-# rather than character vectors, so the content is written to a temporary file.
+# rather than character vectors, so the content is written to a temporary file --
+# with LF endings, because a hash that depends on the platform is worse than no
+# hash at all. Written with writeLines() it did: the hashes in the committed
+# manifest were computed on Windows, so running this script on Linux found every
+# one of them mismatched and reported all 28 documents as edited by hand, which
+# is precisely the state in which it refuses to regenerate them.
 digest_lines <- function(x) {
   tmp <- tempfile()
   on.exit(unlink(tmp), add = TRUE)
-  writeLines(x, tmp)
+  write_lf(x, tmp)
   unname(tools::md5sum(tmp))
 }
 

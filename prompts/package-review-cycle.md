@@ -197,3 +197,39 @@ estimates its own scale, so the ratio would be one by construction and would say
 nothing.
 
 ---
+## Session: package review cycle (continued)
+Date: 2026-09-01
+Model: Claude Opus 5 (claude-opus-5[1m])
+
+### The workflow build script could not be run on Linux
+
+`_build_workflows.R` refuses to overwrite a document that has been edited by
+hand since it was generated, and decides that by comparing an md5 of the
+document against the hash recorded in `workflows/_manifest.csv`.
+
+The hash was computed by writing the content to a temporary file with
+`writeLines()`, which uses the platform's line ending. The hashes in the
+committed manifest were therefore Windows hashes. Running the script on Linux or
+WSL recomputed them with LF, found all 28 mismatched, and reported every
+document as edited by hand -- which is the one state in which the script refuses
+to regenerate anything. The protection against losing a deliberate local edit
+had become a bar on running the generator at all from the other half of the
+working environment described in the repository conventions.
+
+The hash is now computed with an explicit LF terminator, so it depends on the
+content and not on the machine. The generators write LF as well, for the same
+reason and so that a Windows working tree matches what is committed:
+`_build_workflows.R`, `docs/_build_catalogue.R`, `pkg/data-raw/document_datasets.R`
+and the csv templates written by `pkg/data-raw/generate_datasets.R`. A binary
+connection is used rather than `eol = "\n"` alone, because on Windows
+`write.csv()` opens a text connection and translates the separator back to CRLF.
+
+The manifest was regenerated once with `force = TRUE` to move it onto the new
+basis. A clean re-run now reports no skips, all 28 recorded hashes are the
+platform-independent ones, and the shipped copies are identical to the project
+copies.
+
+A `.gitattributes` normalising text files to LF was added alongside, so that the
+question cannot arise again from a file written by some other tool.
+
+---
