@@ -68,9 +68,7 @@ install.packages("remotes")
 remotes::install_github("open-AIMS/CR_workflows", subdir = "pkg")
 ```
 
-The repository is currently **private**, so `install_github()` needs a GitHub
-token with access to it. Set one with `usethis::create_github_token()` and
-`gitcreds::gitcreds_set()`, or install from a local clone instead:
+Or, to edit the workflow documents as well as run them, install from a clone:
 
 ```r
 devtools::install("pkg")   # from the project root
