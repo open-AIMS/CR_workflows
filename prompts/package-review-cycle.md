@@ -104,3 +104,37 @@ in its staging directory, where the first bundle to finish deleted the second's
 files.
 
 ---
+## Session: package review cycle (continued)
+Date: 2026-09-01
+Model: Claude Opus 5 (claude-opus-5[1m])
+
+### An unreachable ECx level no longer withholds the estimable ones
+
+`cr_ecx.drc()` raised an error where any requested level had no solution on the
+fitted curve. The condition is a statement about that level rather than about
+the fit: a curve that plateaus above half the control determines EC10 and EC20
+and leaves only EC50 unreachable. Raising an error withheld the two levels that
+were estimated and, inside a workflow, produced no report at all.
+
+The level is now returned with an `NA` estimate and the reason in its `interval`
+column, which is where every other qualification of a result already lives, and
+a warning names the levels affected. Where no level is reachable, which is what
+an inverted response column gives, every row is `NA` and the warning says so.
+
+The behaviour was checked on `coral_bleaching` rescaled to plateau at 62 per
+cent of the control. `LL.4` estimates its lower limit rather than fixing it at
+zero, so the plateau puts EC50 outside the fitted range: EC10 and EC20 are
+returned with delta-method intervals, EC50 is `NA`, and the results table has
+three rows as before. The three-parameter defaults in the registry fix the lower
+limit at zero and always reach every level, so no shipped result changes.
+
+The warning is raised before `drc::ED()` is called rather than beside either
+result, so that what is reported does not depend on whether the solver went on
+to converge.
+
+`cr_ecx.drc()` also now names a missing test type as the problem. A fit made by
+calling `drc::drm()` directly carries no `cr_test_type` attribute, and the
+omission previously surfaced from `cr_test_type()` as an unknown identifier of
+"".
+
+---

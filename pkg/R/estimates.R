@@ -50,7 +50,18 @@ cr_ecx.drc <- function(fit, ecx_val = NULL, test_type = NULL, level = 0.95,
                        reference = c("control", "range"), ...) {
   require_engine("drc")
   reference <- match.arg(reference)
+  # A fit made by fit_cr_drc() carries its test type as an attribute. One made
+  # by calling drc::drm() directly does not, and everything below needs it, so
+  # the omission is named here rather than surfacing from cr_test_type() as an
+  # unknown identifier of "".
   test_type <- test_type %||% attr(fit, "cr_test_type")
+  if (is.null(test_type)) {
+    stop("This drc fit does not record a test type, so the concentration ",
+      "column and the ECx levels cannot be looked up. Pass test_type, or fit ",
+      "with fit_cr_drc(), which records it.",
+      call. = FALSE
+    )
+  }
   ecx_val <- ecx_val %||% cr_ecx_targets(test_type)
 
   # ECx is referenced to the fitted control response by default, because that is
@@ -96,6 +107,15 @@ cr_ecx.drc <- function(fit, ecx_val = NULL, test_type = NULL, level = 0.95,
     )
     return(ecx_na_rows(ecx_val, ref_label))
   }
+  # Warned here rather than beside either result, so that the report is the same
+  # whether or not drc::ED() went on to converge.
+  if (any(unreachable)) {
+    warning("ECx level(s) ", paste(ecx_val[unreachable], collapse = ", "),
+      " lie outside the range of the fitted curve and are reported as NA. ",
+      "Run check_cr_data() on these data.",
+      call. = FALSE
+    )
+  }
 
   # drc::ED() fails inside uniroot() whenever the Brain-Cousens hormesis term is
   # weakly determined: the root-finding interval it chooses does not bracket the
@@ -123,13 +143,6 @@ cr_ecx.drc <- function(fit, ecx_val = NULL, test_type = NULL, level = 0.95,
       "%.0f%% delta-method confidence interval, referenced to the fitted %s",
       100 * level, ref_label
     )
-    if (any(unreachable)) {
-      warning("ECx level(s) ", paste(ecx_val[unreachable], collapse = ", "),
-        " lie outside the range of the fitted curve and are reported as NA. ",
-        "Run check_cr_data() on these data.",
-        call. = FALSE
-      )
-    }
     return(out)
   }
 

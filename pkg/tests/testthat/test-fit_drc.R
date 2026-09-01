@@ -186,3 +186,14 @@ test_that("a fit where no level is reachable warns rather than aborting", {
   expect_true(all(is.na(res$estimate)))
   expect_true(all(grepl("not estimable", res$interval)))
 })
+
+test_that("a drc fit with no recorded test type is named as the problem", {
+  # fit_cr_drc() records the test type as an attribute. A fit made by calling
+  # drc::drm() directly does not, and without this the omission surfaced from
+  # cr_test_type() as an unknown identifier of "".
+  d <- crworkflows:::drc_frame(algal_growth, cr_test_type("algal_growth"))
+  bare <- drc::drm(.y ~ conc, data = d, fct = drc::LL.3())
+  expect_null(attr(bare, "cr_test_type"))
+  expect_error(cr_ecx(bare), "does not record a test type")
+  expect_silent(invisible(cr_ecx(bare, test_type = "algal_growth")))
+})
