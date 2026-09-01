@@ -12,7 +12,6 @@
 
 library(dplyr)
 library(tidyr)
-library(purrr)
 
 # Base seed. Each dataset uses base_seed + an offset fixed per test type, so
 # every dataset is reproducible on its own.

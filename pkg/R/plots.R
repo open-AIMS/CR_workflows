@@ -121,15 +121,29 @@ cr_predict_grid <- function(fit, data, tt, n_grid, log_x) {
     # two hundred identical warnings from drawing one figure hide anything else
     # the call had to say.
     per_fit <- withCallingHandlers(
-      lapply(fit$fits, function(f) cr_drc_predict(f, nd, se.fit = TRUE)),
+      lapply(fit$fits, function(f) {
+        p <- cr_drc_predict(f, nd, se.fit = TRUE)
+        # drc's predict method drops the dimensions of its result for a grid of
+        # one concentration, so it is restored before anything indexes columns.
+        if (is.null(dim(p))) matrix(p, nrow = 1L) else p
+      }),
       warning = function(w) {
         if (grepl("NaNs produced", conditionMessage(w), fixed = TRUE)) {
           invokeRestart("muffleWarning")
         }
       }
     )
-    preds <- vapply(per_fit, function(p) as.numeric(p[, 1]), numeric(length(grid)))
-    ses <- vapply(per_fit, function(p) as.numeric(p[, 2]), numeric(length(grid)))
+    # matrix() rather than vapply(), which returns a bare vector rather than a
+    # one-row matrix for a single-concentration grid; every column operation
+    # below would then fail on it.
+    as_grid_matrix <- function(column) {
+      matrix(
+        unlist(lapply(per_fit, function(p) as.numeric(p[, column])), use.names = FALSE),
+        nrow = length(grid), dimnames = list(NULL, names(per_fit))
+      )
+    }
+    preds <- as_grid_matrix(1L)
+    ses <- as_grid_matrix(2L)
     w <- fit$weights[colnames(preds)]
 
     # buckland_combine() drops a candidate whose standard error is not finite.

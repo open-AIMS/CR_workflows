@@ -215,11 +215,11 @@ cr_job_status(job)
 cr_job_outputs(job)
 ```
 
-Each render writes four files under `outputs/`, sharing the stem
+Each render writes a set of files under `outputs/`, sharing the stem
 `<sample_id>_<test_type>_<engine>`: the figure, the estimate table, the
 serialised fit and the rendered report. Where more than one model contributed
-to the estimate, which is the default for both engines, a fifth file records
-the weights each candidate carried.
+to the estimate, which is the default for both engines, a further file records
+the weight each candidate carried.
 
 The input csv must carry the columns the test type expects. The shipped csv in
 `pkg/inst/extdata/` is the template for each: for example

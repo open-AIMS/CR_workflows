@@ -129,6 +129,26 @@ on the hormetic example data it returned near-identical concentrations for
 EC10, EC20 and EC50, which are not credible. The conversion to drc's relative
 scale is used instead.
 
+`drc`'s delta-method standard error is not always computable. On the
+`daphnia_immobilisation` example data it is `NaN` over most of the tested range
+for `LL.3`, and in scattered blocks for `W2.3`, two of the four candidates in
+that set. The point estimates are unaffected; only the standard error is
+missing.
+
+This matters for the model-averaged figure, because the Buckland combination
+cannot use a candidate whose standard error is missing. Combining point by point
+would drop a different subset of candidates at each concentration, so the drawn
+curve would be averaged over between two and four candidates depending on where
+along the axis it was read. The candidate set is therefore fixed for the whole
+curve: one usable at every concentration is kept, one that is not is dropped
+throughout, and a warning names it and gives its combined weight. The figure
+caption states how many of the candidates the curve was averaged over.
+
+The estimates in the results table are computed on a different path, from
+`drc::ED()` for each candidate, and are unaffected. Where a candidate is missing
+from one of those, the `interval` column already records how many contributed to
+that row.
+
 ## Which to run
 
 Run **`drc`** for routine throughput. It needs no compiler toolchain, fits in
