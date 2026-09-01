@@ -90,8 +90,8 @@ or wherever `root` points:
 crworkflows::cr_render_workflow("drc", "algal_growth", root = "~/cr_analyses")
 ```
 
-The `drc` workflows need nothing beyond a plain R installation. The `bayesnec`
-workflows compile Stan models, so they need a working C++ toolchain.
+The `drc` workflows need no compiler toolchain. The `bayesnec` workflows compile
+Stan models, so they need a working C++ one.
 
 ### Checking the Stan toolchain
 
