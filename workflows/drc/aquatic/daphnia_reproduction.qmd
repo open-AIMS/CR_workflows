@@ -34,6 +34,12 @@ knitr::opts_chunk$set(fig.width = 7, fig.height = 4.5, dpi = 200)
 options(crworkflows.output_root = file.path(cr_output_root(), "outputs"))
 ```
 
+```{r disclaimer}
+#| echo: false
+#| results: asis
+cat(cr_disclaimer("markdown"))
+```
+
 ## Purpose
 
 This document runs a complete concentration-response analysis of a

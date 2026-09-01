@@ -1,5 +1,16 @@
 # CR_workflows
 
+> [!WARNING]
+> **This package was written by a generative AI system.** Its code,
+> documentation and analysis workflows have not been thoroughly checked, and it
+> is a work in progress. Any result derived from it must be treated with caution
+> and verified independently before it is used, cited, or relied upon for a
+> regulatory or commercial decision.
+>
+> The same statement appears in the application and at the top of every report
+> the workflows produce, so that it reaches a reader of a result who has not read
+> this page.
+
 Standardised concentration-response analysis workflows for commercial
 ecotoxicology laboratories.
 

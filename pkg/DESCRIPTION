@@ -8,6 +8,9 @@ Description: Example datasets, data validation, model fitting and reporting
     ecotoxicological test types. Two independent fitting engines are supported:
     Bayesian multi-model averaging via 'bayesnec' and frequentist non-linear
     regression via 'drc'. Both engines are optional; install only the one in use.
+    This package was written by a generative AI system and has not been
+    thoroughly checked. It is a work in progress, and any result derived from it
+    must be treated with caution and verified independently.
 License: MIT + file LICENSE
 Encoding: UTF-8
 Depends:
