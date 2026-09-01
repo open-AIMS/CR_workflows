@@ -138,3 +138,22 @@ omission previously surfaced from `cr_test_type()` as an unknown identifier of
 "".
 
 ---
+## Session: package review cycle (continued)
+Date: 2026-09-01
+Model: Claude Opus 5 (claude-opus-5[1m])
+
+### Uploaded files were shared between concurrent interface sessions
+
+Shiny sessions in one R process share `tempdir()`. The interface copied each
+uploaded file to `tempdir()/upload_<name>`, so two analysts who both uploaded a
+file called `results.csv` wrote to the same path. The second upload overwrote
+the first, and a background job started before it and still reading that path
+would analyse the second analyst's data and file the result under the first
+analyst's sample identifier.
+
+This matters because the interface is documented as running several samples at
+once, which is the case where it happens. Each session now gets its own upload
+directory, removed when the session ends. The uploaded name is supplied by the
+client, so it is reduced to its base name before a path is built from it.
+
+---

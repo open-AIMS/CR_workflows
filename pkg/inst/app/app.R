@@ -117,12 +117,26 @@ server <- function(input, output, session) {
            ". Concentration in ", r$conc_units, ".")
   })
 
-  # The uploaded file is copied to a stable path: Shiny's upload path has no
+  # Every session gets its own directory for uploads. Shiny sessions share one
+  # tempdir(), so a path built from the uploaded file's name alone would be the
+  # same for two analysts who both uploaded "results.csv": the second upload
+  # would overwrite the first, and a background job started before it and still
+  # reading that path would analyse the wrong sample under the first analyst's
+  # sample identifier. The name is also supplied by the client, so it is reduced
+  # to its base name before being used to build a path.
+  session_upload_dir <- local({
+    d <- tempfile("cr_upload_")
+    dir.create(d, recursive = TRUE, showWarnings = FALSE)
+    onSessionEnded(function() unlink(d, recursive = TRUE))
+    d
+  })
+
+  # The uploaded file is copied out of Shiny's own upload path, which has no
   # extension and is cleaned up when the session ends, whereas a background job
   # may still need to read it.
   upload_path <- reactive({
     req(input$source == "upload", input$file)
-    dest <- file.path(tempdir(), paste0("upload_", input$file$name))
+    dest <- file.path(session_upload_dir, paste0("upload_", basename(input$file$name)))
     file.copy(input$file$datapath, dest, overwrite = TRUE)
     dest
   })

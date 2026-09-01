@@ -105,3 +105,49 @@ test_that("no job is started while the data are blocked", {
     expect_length(jobs(), 0)
   })
 })
+
+test_that("uploads are kept in a directory of the session's own", {
+  # Shiny sessions share one tempdir(). A path built from the uploaded file name
+  # alone is the same for two analysts who both upload "results.csv": the second
+  # overwrites the first, and a background job started before it and still
+  # reading that path analyses the wrong sample under the first analyst's sample
+  # identifier.
+  csv <- withr::local_tempfile(fileext = ".csv")
+  utils::write.csv(algal_growth, csv, row.names = FALSE)
+
+  # testServer() returns NULL rather than the value of its block, so the path is
+  # carried out of each session explicitly.
+  seen <- character(0)
+  for (i in 1:2) {
+    shiny::testServer(shiny::shinyAppDir(app_dir()), {
+      session$setInputs(test_type = "algal_growth", source = "upload")
+      session$setInputs(file = list(
+        name = "results.csv", datapath = csv,
+        size = file.size(csv), type = "text/csv"
+      ))
+      seen <<- c(seen, upload_path())
+    })
+  }
+
+  expect_length(seen, 2L)
+  expect_equal(basename(seen[1]), basename(seen[2]))
+  expect_false(identical(dirname(seen[1]), dirname(seen[2])))
+})
+
+test_that("a client-supplied file name cannot direct the upload out of its directory", {
+  csv <- withr::local_tempfile(fileext = ".csv")
+  utils::write.csv(algal_growth, csv, row.names = FALSE)
+
+  p <- NULL
+  shiny::testServer(shiny::shinyAppDir(app_dir()), {
+    session$setInputs(test_type = "algal_growth", source = "upload")
+    session$setInputs(file = list(
+      name = "../../escaped.csv", datapath = csv,
+      size = file.size(csv), type = "text/csv"
+    ))
+    p <<- upload_path()
+  })
+  expect_type(p, "character")
+  expect_false(grepl("..", p, fixed = TRUE))
+  expect_equal(basename(p), "upload_escaped.csv")
+})
