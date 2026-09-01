@@ -152,3 +152,87 @@ test_that("cr_results_table() accepts an averaged fit", {
                     "lower", "upper", "interval") %in% names(res)))
   expect_match(res$interval[1], "model-averaged")
 })
+
+test_that("an averaged fit plots for every test type", {
+  # Plotting an averaged fit combines the candidate predictions pointwise, which
+  # is a different path from the single-fit plot and was previously exercised on
+  # one test type only.
+  for (id in cr_test_types()$id) {
+    d <- get(id, envir = asNamespace("crworkflows"))
+    ma <- suppressWarnings(fit_cr_drc_ma(d, id, validate = FALSE))
+    p <- suppressWarnings(plot_cr_fit(ma, d, id))
+    expect_s3_class(p, "ggplot")
+    expect_silent(invisible(ggplot2::ggplot_build(p)))
+    expect_match(p$labels$caption, "Buckland", info = id)
+    # No gaps in the drawn curve or band.
+    pred <- p$layers[[3]]$data
+    expect_true(all(is.finite(pred$.fit)), info = id)
+    expect_true(all(is.finite(pred$.lower) & is.finite(pred$.upper)), info = id)
+  }
+})
+
+test_that("the plotted curve is averaged over one fixed set of candidates", {
+  # drc's delta-method standard error is NaN over most of the tested range for
+  # two of the four candidates here. Combining point by point dropped whichever
+  # were unusable at each concentration, so the curve was averaged over between
+  # two and four candidates depending on where along the axis it was read, with
+  # a small discontinuity at each change and a caption that named a count
+  # holding nowhere in particular.
+  id <- "daphnia_immobilisation"
+  d <- get(id, envir = asNamespace("crworkflows"))
+  ma <- suppressWarnings(fit_cr_drc_ma(d, id, validate = FALSE))
+
+  expect_warning(
+    p <- plot_cr_fit(ma, d, id),
+    "no usable standard error"
+  )
+  expect_match(p$labels$caption, "of [0-9]+ candidates")
+
+  # The composition is fixed, so the curve has no jumps: on a grid of 200 points
+  # over a curve spanning the full response range, no single step may be a large
+  # fraction of that range.
+  pred <- p$layers[[3]]$data
+  span <- diff(range(pred$.fit))
+  expect_lt(max(abs(diff(pred$.fit))), 0.1 * span)
+  expect_false(is.unsorted(rev(pred$.fit)))
+})
+
+test_that("the many drc NaN warnings are summarised into one", {
+  # Drawing this figure previously emitted 225 separate "NaNs produced"
+  # warnings, which hide anything else the call has to report.
+  id <- "daphnia_immobilisation"
+  d <- get(id, envir = asNamespace("crworkflows"))
+  ma <- suppressWarnings(fit_cr_drc_ma(d, id, validate = FALSE))
+
+  warnings_seen <- character(0)
+  withCallingHandlers(
+    invisible(plot_cr_fit(ma, d, id)),
+    warning = function(w) {
+      warnings_seen <<- c(warnings_seen, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    }
+  )
+  expect_length(warnings_seen, 1L)
+  expect_false(any(grepl("NaNs produced", warnings_seen, fixed = TRUE)))
+})
+
+test_that("each candidate is predicted once when building the averaged curve", {
+  # The band needs the prediction and its standard error at every grid point.
+  # Taking them from two separate predict() calls doubled the work for no gain.
+  ma <- suppressWarnings(fit_cr_drc_ma(algal_growth, "algal_growth", validate = FALSE))
+  calls <- 0L
+  ns <- asNamespace("crworkflows")
+  original <- get("cr_drc_predict", envir = ns)
+  unlockBinding("cr_drc_predict", ns)
+  assign("cr_drc_predict", function(...) {
+    calls <<- calls + 1L
+    original(...)
+  }, envir = ns)
+  on.exit({
+    assign("cr_drc_predict", original, envir = ns)
+    lockBinding("cr_drc_predict", ns)
+  })
+
+  invisible(plot_cr_fit(ma, algal_growth, "algal_growth"))
+  expect_equal(calls, length(ma$fits))
+})

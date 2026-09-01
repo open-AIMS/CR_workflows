@@ -30,7 +30,7 @@ leaves the html beside the document rather than filing it under
 |---|---|
 | `_templates/` | One template per engine. Every document is generated from these. |
 | `_build_workflows.R` | Generates the 28 documents and copies them into `pkg/inst/workflows/`. Refuses to overwrite a document edited since it was generated. |
-| `_render.R` | Renders a document and moves the report into `outputs/reports/`. |
+| `_render.R` | Thin wrappers over `crworkflows::cr_render_workflow()` for rendering from a clone, one document or all of them. The render path itself lives in the package, so the console, this script and the interface cannot drift apart. |
 | `_render_bayesnec.R` | Renders the bayesnec documents in bulk. Slow: eight to fifteen minutes per test type. |
 | `_check_bayesnec.R` | Runs the bayesnec analysis path for one test type without Quarto, for use where only the Stan toolchain is available. |
 | `_manifest.csv` | Records which document came from which template, and its content hash. Used to detect hand edits. |

@@ -111,13 +111,56 @@ cr_predict_grid <- function(fit, data, tt, n_grid, log_x) {
     # concentration the candidate predictions are combined by the same Buckland
     # rule used for the estimates, so the band widens where the candidates
     # disagree about the shape of the curve.
-    preds <- vapply(fit$fits, function(f) {
-      as.numeric(cr_drc_predict(f, nd, se.fit = TRUE)[, 1])
-    }, numeric(length(grid)))
-    ses <- vapply(fit$fits, function(f) {
-      as.numeric(cr_drc_predict(f, nd, se.fit = TRUE)[, 2])
-    }, numeric(length(grid)))
+    #
+    # Each candidate is predicted once and both columns taken from that result;
+    # predicting twice doubles the work over a grid of n_grid concentrations.
+    # drc's delta-method standard error is not always computable: on the
+    # daphnia_immobilisation example it is NaN over most of the tested range for
+    # two of the four candidates, and each NaN arrives as a separate "NaNs
+    # produced" warning. Those are collected here and summarised once, because
+    # two hundred identical warnings from drawing one figure hide anything else
+    # the call had to say.
+    per_fit <- withCallingHandlers(
+      lapply(fit$fits, function(f) cr_drc_predict(f, nd, se.fit = TRUE)),
+      warning = function(w) {
+        if (grepl("NaNs produced", conditionMessage(w), fixed = TRUE)) {
+          invokeRestart("muffleWarning")
+        }
+      }
+    )
+    preds <- vapply(per_fit, function(p) as.numeric(p[, 1]), numeric(length(grid)))
+    ses <- vapply(per_fit, function(p) as.numeric(p[, 2]), numeric(length(grid)))
     w <- fit$weights[colnames(preds)]
+
+    # buckland_combine() drops a candidate whose standard error is not finite.
+    # Applied point by point that silently changes which candidates the curve is
+    # averaged over as x moves along the axis -- five times over the grid on the
+    # daphnia_immobilisation example -- so the drawn curve has small
+    # discontinuities where the composition changes and the caption names a
+    # candidate count that holds nowhere in particular. The set is therefore
+    # fixed for the whole curve: a candidate usable everywhere is kept, one that
+    # is not is dropped throughout and reported.
+    usable <- apply(ses, 2, function(s) all(is.finite(s)))
+    n_used <- sum(usable)
+    if (any(usable) && !all(usable)) {
+      dropped <- colnames(ses)[!usable]
+      warning("drc returned no usable standard error at some concentrations for ",
+        "candidate mean function(s) ", paste(dropped, collapse = ", "),
+        " (combined weight ", format(signif(sum(w[dropped]), 3)), "). They are ",
+        "excluded from the plotted curve and band, which is averaged over ",
+        n_used, " of ", length(usable), " candidates. The estimates in the ",
+        "results table are computed separately and are unaffected.",
+        call. = FALSE
+      )
+      preds <- preds[, usable, drop = FALSE]
+      ses <- ses[, usable, drop = FALSE]
+      w <- w[usable]
+    } else if (!any(usable)) {
+      # Nothing is usable throughout, so the pointwise combination is all there
+      # is. It is drawn, and the caption says the composition varies.
+      n_used <- NA_integer_
+    }
+
     comb <- t(vapply(seq_along(grid), function(i) {
       buckland_combine(preds[i, ], ses[i, ], w)[c("estimate", "se")]
     }, numeric(2)))
@@ -127,10 +170,24 @@ cr_predict_grid <- function(fit, data, tt, n_grid, log_x) {
       .lower = comb[, 1] - z * comb[, 2],
       .upper = comb[, 1] + z * comb[, 2]
     )
-    attr(out, "interval_label") <- sprintf(
-      "Model-averaged curve over %d candidates with 95%% Buckland interval (drc)",
-      length(fit$fits)
-    )
+    attr(out, "interval_label") <- if (is.na(n_used)) {
+      sprintf(paste0(
+        "Model-averaged curve with 95%% Buckland interval (drc). drc gave no ",
+        "usable standard error across the whole range for any of the %d ",
+        "candidates, so the interval is combined from whichever are usable at ",
+        "each concentration and its composition varies along the curve."
+      ), length(fit$fits))
+    } else if (n_used < length(fit$fits)) {
+      sprintf(paste0(
+        "Model-averaged curve over %d of %d candidates with 95%% Buckland ",
+        "interval (drc); the rest gave no usable standard error"
+      ), n_used, length(fit$fits))
+    } else {
+      sprintf(
+        "Model-averaged curve over %d candidates with 95%% Buckland interval (drc)",
+        n_used
+      )
+    }
     return(out)
   }
 

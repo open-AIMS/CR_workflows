@@ -81,7 +81,11 @@ cr_render_workflow <- function(engine = c("drc", "bayesnec"), test_type,
   root <- normalizePath(root, "/", mustWork = TRUE)
   qmd <- cr_workflow_path(engine, test_type, root)
 
-  work_dir <- file.path(tempdir(), paste0("cr_", engine, "_", test_type, "_", as.integer(Sys.time()), "_", sample(1e6, 1)))
+  # tempfile() rather than a name built from Sys.time() and sample(): the latter
+  # collides for two renders started in the same second, and sample() would draw
+  # from the caller's random number stream, so rendering a report would change
+  # the numbers a subsequent seeded analysis produced in the same session.
+  work_dir <- tempfile(paste0("cr_", engine, "_", test_type, "_"))
   dir.create(work_dir, recursive = TRUE, showWarnings = FALSE)
   on.exit(unlink(work_dir, recursive = TRUE), add = TRUE)
   local_qmd <- file.path(work_dir, basename(qmd))
@@ -133,12 +137,14 @@ cr_render_workflow <- function(engine = c("drc", "bayesnec"), test_type,
 
 #' Paths to the outputs of one analysis
 #'
-#' Returns the four files an analysis produces, whether or not each exists, so
-#' that a caller can collect what a run left behind.
+#' Returns the files an analysis produces, whether or not each exists, so that a
+#' caller can collect what a run left behind. The weights table is written only
+#' where more than one model contributed, so it is named here but is absent for
+#' a single-model fit.
 #'
 #' @inheritParams cr_render_workflow
-#' @return A named character vector with elements `report`, `figure`, `table`
-#'   and `fit`.
+#' @return A named character vector with elements `report`, `figure`, `table`,
+#'   `weights` and `fit`.
 #' @export
 cr_output_files <- function(engine, test_type, sample_id = "example",
                             root = NULL) {

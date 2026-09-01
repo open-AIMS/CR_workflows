@@ -28,14 +28,17 @@ complement as well. The example dataset for that test type carries both
 ## 2. Render the workflow
 
 ```r
-source("workflows/_render.R")
-render_workflow(
+crworkflows::cr_render_workflow(
   engine    = "drc",
   test_type = "algal_growth",
   sample_id = "S2026-0142",
   data_file = "path/to/S2026-0142.csv"
 )
 ```
+
+This is the same call the interface makes and the same one
+`workflows/_render.R` makes from a clone, so there is one render path whichever
+is used.
 
 `docs/engine-comparison.md` records how to choose the engine. Where both are
 run, both are reported; the engine is not selected after seeing the estimates.
@@ -49,9 +52,10 @@ common ones and what they mean:
 | Reported | What to do |
 |---|---|
 | No zero-concentration control | Confirm the control was exported and is coded as zero. Re-export. |
+| The response rises with concentration rather than falling | The wrong response column was supplied. Use the unaffected count or measurement, not its complement, as in point 1 above. Re-export and re-run. |
 | Fewer than five non-control concentrations | The regression is poorly determined. Report the estimate with the limitation stated, or report a threshold result instead. |
 | Fewer than three replicates at some concentrations | Check for rows lost in export before accepting. |
-| Response does not reach a lower plateau | Any ECx beyond the observed effect range is an extrapolation and is reported as greater than the highest tested concentration. |
+| The largest observed effect does not reach the ECx being reported | Any ECx beyond the observed effect range is an extrapolation and is reported as greater than the highest tested concentration. |
 | Successes exceed trials | A transcription error. Correct at source. |
 | Zero or negative values with a Gamma likelihood | Decide between a Gaussian likelihood and a documented offset, and record which. |
 | Exact zeros or ones in a proportion | Use the underlying counts with a binomial likelihood if they exist. |
@@ -75,11 +79,14 @@ in the report.
 
 ## 5. File the outputs
 
-A render writes four files under `outputs/`, sharing the stem
+A render writes these files under `outputs/`, sharing the stem
 `<sample_id>_<test_type>_<engine>`:
 
 - `figures/<stem>.png` — the fitted curve over the observed data
 - `tables/<stem>_results.csv` — the estimates
+- `tables/<stem>_weights.csv` — how much each candidate model contributed,
+  written only where more than one contributed, which is the default for both
+  engines
 - `fits/<stem>.rds` — the serialised model
 - `reports/<stem>.html` — the rendered document
 

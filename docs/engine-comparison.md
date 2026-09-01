@@ -19,7 +19,7 @@ Intervals are credible intervals from the posterior of the averaged prediction.
 ## What is the same
 
 Both workflows read the same data, apply the same validation checks, produce
-the same four output files under the same naming stem, and report ECx
+the same output files under the same naming stem, and report ECx
 referenced to the fitted control response. That last point is a deliberate
 choice: the `drc` workflow converts the control-referenced target onto the
 scale drc's calculation expects, rather than reporting an ECx referenced to the
@@ -57,7 +57,7 @@ setting `params$model` to `"nec"`, and record that restriction in the report.
 
 The `drc` workflow reports no threshold estimate of any kind.
 
-**Both engines now average over their candidate set**, so both report intervals
+**Both engines average over their candidate set**, so both report intervals
 that include the uncertainty in the choice of curve form. The weighting schemes
 differ and are not the same quantity:
 

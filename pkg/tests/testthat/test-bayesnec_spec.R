@@ -61,7 +61,6 @@ test_that("the model group is one whose response declines with concentration", {
   # specification error rather than a modelling choice.
   for (id in cr_test_types()$id) {
     d <- get(id, envir = asNamespace("crworkflows"))
-    tt <- cr_test_type(id)
     s <- summarise_design(d, id)
     expect_gt(s$mean[s$conc == 0], s$mean[which.max(s$conc)],
       label = paste(id, "control mean")

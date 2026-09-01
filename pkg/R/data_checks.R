@@ -3,10 +3,11 @@
 #' Applies the checks a laboratory analyst would otherwise make by eye before
 #' fitting: that the expected columns are present, that concentrations and
 #' responses fall within admissible ranges for the response type, that a control
-#' is present, and that replication is adequate. Problems that make a fit
-#' impossible are raised as errors. Problems that only threaten reliability are
-#' returned in the result so that the analyst can record and override them,
-#' rather than being silently corrected.
+#' is present, that replication is adequate, and that the response declines with
+#' concentration over the tested range. Problems that make a fit impossible are
+#' raised as errors. Problems that only threaten reliability are returned in the
+#' result so that the analyst can record and override them, rather than being
+#' silently corrected.
 #'
 #' @param data A data frame holding one test.
 #' @param test_type Test-type identifier, one of `cr_test_types()$id`.
@@ -75,9 +76,7 @@ check_cr_data <- function(data, test_type, min_conc_levels = 5, min_reps = 3) {
       min_reps, sum(design$n < min_reps)
     ))
   }
-  if (partial_response(y, data, tt)) {
-    issues <- c(issues, "The response does not reach a lower plateau within the tested range. ECx values beyond the observed effect range are extrapolations and must be reported as such.")
-  }
+  issues <- c(issues, check_response_direction(y, data, tt, test_type))
 
   structure(
     list(
@@ -129,20 +128,72 @@ check_response_range <- function(y, data, tt) {
   w
 }
 
-# A response that has not reached a plateau yields ECx estimates that
-# extrapolate beyond the data. Detected here by comparing the mean response at
-# the highest concentration with the control, rather than being left to be
-# noticed downstream in the estimate table.
-partial_response <- function(y, data, tt) {
+# Two problems are read off the same quantity: the mean response at the highest
+# tested concentration as a fraction of the control.
+#
+# A fraction at or above one means the response rises with concentration. Every
+# response column in the registry is oriented to fall, so this is almost always
+# the wrong column having been supplied -- the affected count instead of its
+# complement, which the standard operating procedure names as one of the
+# decisions that are hard to correct later. Left undetected it fits an
+# increasing curve and the ECx values are meaningless, so it is reported here
+# rather than surfacing later as an unrelated-looking failure in the estimates.
+#
+# A fraction below one but above the largest effect the test type reports means
+# that effect was never observed, so an ECx at that level extrapolates beyond
+# the data. The threshold is taken from the registry rather than fixed at a
+# half, so that a test type reporting only EC10 and EC20 is judged against what
+# it actually reports.
+# The mean response at the control and at the highest tested concentration, on
+# the proportion scale for binomial test types so the two are comparable. These
+# are compared directly rather than as a ratio, because an inverted response
+# often has a control mean of exactly zero -- the affected count in an
+# undamaged control -- and a ratio is then undefined for the very case the
+# direction check exists to catch.
+response_extremes <- function(y, data, tt) {
   if (tt$response_type == "binomial_trials") y <- y / data[[tt$trials_var]]
   x <- data[[tt$x_var]]
-  ctrl <- mean(y[x == 0], na.rm = TRUE)
   top <- max(x, na.rm = TRUE)
-  hi <- mean(y[x == top], na.rm = TRUE)
-  if (!is.finite(ctrl) || !is.finite(hi) || ctrl == 0) {
-    return(FALSE)
+  c(
+    control = mean(y[x == 0], na.rm = TRUE),
+    highest = mean(y[x == top], na.rm = TRUE)
+  )
+}
+
+check_response_direction <- function(y, data, tt, test_type) {
+  e <- response_extremes(y, data, tt)
+  if (!all(is.finite(e))) {
+    return(character(0))
   }
-  (hi / ctrl) > 0.5
+  if (e[["highest"]] >= e[["control"]]) {
+    return(sprintf(
+      paste0(
+        "The mean response at the highest tested concentration (%s) is not below the ",
+        "control (%s), so the response does not decline over the tested range. Every ",
+        "test type expects a response that falls with concentration: check that column ",
+        "'%s' holds the unaffected count or measurement and not its complement. Fitted ",
+        "as they stand these data give an increasing curve and ECx values that cannot ",
+        "be interpreted."
+      ),
+      format(signif(e[["highest"]], 4)), format(signif(e[["control"]], 4)), tt$y_var
+    ))
+  }
+  if (e[["control"]] <= 0) {
+    return(character(0))
+  }
+  ratio <- e[["highest"]] / e[["control"]]
+  max_ecx <- max(cr_ecx_targets(test_type))
+  if (ratio > 1 - max_ecx / 100) {
+    return(sprintf(
+      paste0(
+        "The largest observed effect is a reduction to %.0f%% of the control, which does ",
+        "not reach the EC%g this test type reports. ECx values beyond the observed effect ",
+        "range are extrapolations and must be reported as such."
+      ),
+      100 * ratio, max_ecx
+    ))
+  }
+  character(0)
 }
 
 #' Summarise the design of a concentration-response dataset

@@ -13,7 +13,7 @@
 #   Rscript workflows/_render_bayesnec.R algal_growth coral_bleaching
 
 source("workflows/_render.R")
-source("pkg/R/test_types.R")
+library(crworkflows)
 
 args <- commandArgs(trailingOnly = TRUE)
 ids <- if (length(args)) args else cr_test_types()$id

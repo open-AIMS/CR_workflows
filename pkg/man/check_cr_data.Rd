@@ -26,10 +26,11 @@ An object of class \code{cr_check}: a list with elements \code{test_type},
 Applies the checks a laboratory analyst would otherwise make by eye before
 fitting: that the expected columns are present, that concentrations and
 responses fall within admissible ranges for the response type, that a control
-is present, and that replication is adequate. Problems that make a fit
-impossible are raised as errors. Problems that only threaten reliability are
-returned in the result so that the analyst can record and override them,
-rather than being silently corrected.
+is present, that replication is adequate, and that the response declines with
+concentration over the tested range. Problems that make a fit impossible are
+raised as errors. Problems that only threaten reliability are returned in the
+result so that the analyst can record and override them, rather than being
+silently corrected.
 }
 \examples{
 data(algal_growth)

@@ -70,7 +70,7 @@ build_catalogue <- function(root = ".") {
     "dataset, which follows the guideline but is simulated, not measured. It is a",
     "guide to the expected input format, not a specification of the test.",
     "",
-    paste0("Fourteen test types across ", length(groups), " groups: ",
+    paste0(nrow(reg), " test types across ", length(groups), " groups: ",
       paste(groups, collapse = ", "), "."),
     ""
   )

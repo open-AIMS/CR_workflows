@@ -23,7 +23,6 @@ execute:
 ```{r setup}
 #| include: false
 library(crworkflows)
-library(dplyr)
 library(ggplot2)
 
 set.seed(params$seed)
@@ -65,14 +64,18 @@ knitr::kable(
 
 The default is the simulated example dataset shipped with the package. Set
 `params$data_file` to a csv exported from the laboratory information system to
-analyse a real sample. The csv must carry the columns listed above;
-`inst/extdata/plant_emergence.csv` is a template of the expected layout.
+analyse a real sample. The csv must carry the columns listed above. A template
+of the expected layout ships with the package; its path on this machine is
+printed below.
 
 ```{r load-data}
+cat("input format template:",
+    system.file("extdata", "plant_emergence.csv", package = "crworkflows"), "\n")
+
 cr_data <- if (is.null(params$data_file)) {
   get(params$test_type, envir = asNamespace("crworkflows"))
 } else {
-  readr::read_csv(params$data_file, show_col_types = FALSE) |> as.data.frame()
+  utils::read.csv(params$data_file, stringsAsFactors = FALSE)
 }
 
 knitr::kable(head(cr_data, 10), caption = "First ten rows of the analysis dataset")
@@ -206,7 +209,8 @@ knitr::kable(results[, c("estimate_type", "level", "estimate", "lower", "upper")
 
 ```{r fit-plot}
 #| fig-cap: "Fitted curve with its 95% confidence interval."
-plot_cr_fit(fit, cr_data, params$test_type)
+fit_plot <- plot_cr_fit(fit, cr_data, params$test_type)
+fit_plot
 ```
 
 ## Outputs and provenance
@@ -215,7 +219,7 @@ plot_cr_fit(fit, cr_data, params$test_type)
 stem <- paste(params$sample_id, params$test_type, "drc", sep = "_")
 paths <- write_cr_outputs(
   fit = fit,
-  plot = plot_cr_fit(fit, cr_data, params$test_type),
+  plot = fit_plot,
   results = results,
   stem = stem,
   save_fit = params$save_fit

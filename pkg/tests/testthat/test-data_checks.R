@@ -75,3 +75,51 @@ test_that("cr_check prints its issues", {
   expect_output(print(check_cr_data(d, "algal_growth")), "control")
   expect_output(print(check_cr_data(algal_growth, "algal_growth")), "no issues identified")
 })
+
+test_that("a response that rises with concentration is reported", {
+  # The standard operating procedure names supplying the affected count instead
+  # of its complement as one of three decisions that are hard to correct later,
+  # and it is the commonest of the three. Before this check the inverted data
+  # passed every check in silence and the failure surfaced much later, as an
+  # error from the estimate stage that named an unrelated cause.
+  d <- daphnia_immobilisation
+  d$mobile <- d$immobile
+  chk <- check_cr_data(d, "daphnia_immobilisation")
+  expect_match(paste(chk$issues, collapse = " "), "does not decline")
+  expect_match(paste(chk$issues, collapse = " "), "mobile", fixed = TRUE)
+
+  # The control mean of the inverted data is exactly zero, so the comparison
+  # cannot be made as a ratio. That is the ordinary case, not an edge case: an
+  # undamaged control has an affected count of zero.
+  e <- crworkflows:::response_extremes(
+    d$mobile, d, cr_test_type("daphnia_immobilisation")
+  )
+  expect_equal(unname(e[["control"]]), 0)
+
+  # It must not fire on data that decline, including the hormetic test types
+  # whose response rises above the control at low concentrations before falling.
+  for (id in cr_test_types()$id) {
+    d <- get(id, envir = asNamespace("crworkflows"))
+    issues <- check_cr_data(d, id)$issues
+    expect_false(any(grepl("does not decline", issues)), info = id)
+  }
+})
+
+test_that("the extrapolation threshold comes from the registry, not a constant", {
+  # The check asks whether the largest observed effect reaches the largest ECx
+  # the test type reports. Fixing it at fifty per cent would be wrong for a test
+  # type reporting only EC10 and EC20.
+  tt <- cr_test_type("algal_growth")
+  ratio_of <- function(d) {
+    e <- crworkflows:::response_extremes(d$growth_rate, d, tt)
+    e[["highest"]] / e[["control"]]
+  }
+
+  truncated <- algal_growth[algal_growth$conc <= 2, ]
+  expect_gt(ratio_of(truncated), 0.5)
+  chk <- check_cr_data(truncated, "algal_growth", min_conc_levels = 1)
+  expect_match(paste(chk$issues, collapse = " "), "does not reach the EC50")
+
+  full <- check_cr_data(algal_growth, "algal_growth")
+  expect_false(any(grepl("does not reach the EC", full$issues)))
+})

@@ -17,10 +17,12 @@ cr_output_files(engine, test_type, sample_id = "example", root = NULL)
 the working directory, if there is one.}
 }
 \value{
-A named character vector with elements \code{report}, \code{figure}, \code{table}
-and \code{fit}.
+A named character vector with elements \code{report}, \code{figure}, \code{table},
+\code{weights} and \code{fit}.
 }
 \description{
-Returns the four files an analysis produces, whether or not each exists, so
-that a caller can collect what a run left behind.
+Returns the files an analysis produces, whether or not each exists, so that a
+caller can collect what a run left behind. The weights table is written only
+where more than one model contributed, so it is named here but is absent for
+a single-model fit.
 }

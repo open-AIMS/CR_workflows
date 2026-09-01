@@ -16,9 +16,16 @@
 #' @param test_type Test-type identifier. Only needed for `drc` fits not created
 #'   by [fit_cr_drc()], which records it as an attribute.
 #' @param level Interval width. Defaults to 0.95.
-#' @param ... Passed to the underlying engine function.
+#' @param ... Passed to the underlying engine function. The `drc` methods also
+#'   accept `reference`, which selects what the ECx is referenced to: `"control"`
+#'   (the default) references it to the fitted control response, which is the
+#'   convention in ecotoxicological reporting and what `bayesnec::ecx()` returns;
+#'   `"range"` references it to the fitted response range, which is drc's own
+#'   convention. The two coincide wherever the fitted lower limit is zero.
 #' @return A data frame with columns `engine`, `estimate_type`, `level`,
-#'   `estimate`, `lower`, `upper` and `interval`.
+#'   `estimate`, `se`, `lower`, `upper` and `interval`. `se` is `NA` for
+#'   `bayesnec` fits, whose interval is a posterior quantile rather than a
+#'   standard error, and is present so that both engines return one schema.
 #' @export
 cr_ecx <- function(fit, ecx_val = NULL, test_type = NULL, level = 0.95, ...) {
   UseMethod("cr_ecx")
@@ -59,10 +66,20 @@ cr_ecx.drc <- function(fit, ecx_val = NULL, test_type = NULL, level = 0.95,
   } else {
     ecx_val
   }
+  # The message states what was found rather than the conclusion. The target
+  # can fall outside the fitted range because the curve never declines that far,
+  # in which case the ECx is above the tested range; it can equally happen
+  # because the fitted curve rises with concentration, which means the wrong
+  # response column was supplied. check_cr_data() distinguishes the two, so the
+  # analyst is sent there rather than being given one of the two explanations as
+  # though it were established.
   if (any(!is.finite(respLev))) {
     stop("ECx level(s) ", paste(ecx_val[!is.finite(respLev)], collapse = ", "),
-      " lie outside the range of the fitted curve and cannot be estimated. ",
-      "Report them as greater than the highest tested concentration.",
+      " fall outside the range of the fitted curve, so no concentration solves ",
+      "them. Run check_cr_data() on these data: either the effect was not ",
+      "reached within the tested range, in which case report the ECx as greater ",
+      "than the highest tested concentration, or the fitted response rises with ",
+      "concentration, in which case the wrong response column was supplied.",
       call. = FALSE
     )
   }

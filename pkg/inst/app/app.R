@@ -135,17 +135,30 @@ server <- function(input, output, session) {
     }
   })
 
+  # Choosing "Upload a csv" before picking a file is an ordinary intermediate
+  # state, not a fault, and must not be reported as one.
+  awaiting_file <- reactive(identical(input$source, "upload") && is.null(input$file))
+
   # The check is the gate. A structural problem is an error, not a warning, and
   # is surfaced here rather than being discovered inside a background job.
   checks <- reactive({
+    req(!awaiting_file())
     tryCatch(check_cr_data(cr_data(), input$test_type),
       error = function(e) e
     )
   })
 
-  blocked <- reactive(inherits(checks(), "error"))
+  # req() throws a silent error of its own while no file has been chosen, and
+  # the tryCatch above catches it along with everything else, so the two states
+  # are separated here: nothing to check yet is not the same as data that cannot
+  # be analysed.
+  blocked <- reactive(!awaiting_file() && inherits(checks(), "error"))
 
   output$checks <- renderUI({
+    if (awaiting_file()) {
+      return(div(class = "alert alert-secondary",
+        "Choose a csv to see the data checks."))
+    }
     ch <- checks()
     if (inherits(ch, "error")) {
       return(div(
@@ -165,7 +178,9 @@ server <- function(input, output, session) {
   })
 
   output$run_note <- renderUI({
-    if (blocked()) {
+    if (awaiting_file()) {
+      div(class = "text-muted small mt-2", "Choose a csv before running.")
+    } else if (blocked()) {
       div(class = "text-danger small mt-2", "Fix the data before running.")
     } else if (input$engine == "bayesnec") {
       div(class = "text-muted small mt-2",
@@ -175,7 +190,13 @@ server <- function(input, output, session) {
 
   observe({
     updateActionButton(session, "run",
-      label = if (blocked()) "Fix the data first" else "Run analysis"
+      label = if (awaiting_file()) {
+        "Choose a csv first"
+      } else if (blocked()) {
+        "Fix the data first"
+      } else {
+        "Run analysis"
+      }
     )
   })
 
@@ -203,6 +224,10 @@ server <- function(input, output, session) {
   })
 
   observeEvent(input$run, {
+    if (awaiting_file()) {
+      showNotification("Choose a csv before running.", type = "warning")
+      return()
+    }
     if (blocked()) {
       showNotification("The data cannot be analysed as this test type.",
         type = "error"

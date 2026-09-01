@@ -53,7 +53,12 @@ enough to run an analysis or the interface. Cloning the project is only needed
 in order to edit the documents.
 
 ```r
-install.packages(c("ggplot2", "rlang", "dplyr", "readr", "quarto", "knitr"))
+# rendering a workflow document
+install.packages(c("ggplot2", "rlang", "quarto", "knitr"))
+
+# the Shiny interface and background jobs
+install.packages(c("shiny", "bslib", "DT", "callr", "zip"))
+
 install.packages("drc")                     # for the drc workflows
 
 # for the bayesnec workflows. cmdstanr is the default backend and is not on
@@ -212,7 +217,9 @@ cr_job_outputs(job)
 
 Each render writes four files under `outputs/`, sharing the stem
 `<sample_id>_<test_type>_<engine>`: the figure, the estimate table, the
-serialised fit and the rendered report.
+serialised fit and the rendered report. Where more than one model contributed
+to the estimate, which is the default for both engines, a fifth file records
+the weights each candidate carried.
 
 The input csv must carry the columns the test type expects. The shipped csv in
 `pkg/inst/extdata/` is the template for each: for example

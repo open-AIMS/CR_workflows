@@ -29,7 +29,6 @@ Suggests:
     knitr,
     pkgbuild,
     quarto,
-    readr,
     rstan,
     shiny,
     testthat (>= 3.0.0),
