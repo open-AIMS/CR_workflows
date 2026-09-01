@@ -55,16 +55,70 @@ install.packages("devtools")
 devtools::install("pkg")
 ```
 
-The `bayesnec` workflows compile Stan models and therefore need a working C++
-toolchain. On Windows this means the version of Rtools matching the installed R:
-**R 4.5.x requires Rtools 4.5**, and an earlier Rtools will not substitute for
-it. Check with `pkgbuild::has_build_tools(debug = TRUE)` before the first fit.
-The `drc` workflows have no such requirement and run on a plain R installation.
+The `drc` workflows need nothing beyond a plain R installation. The `bayesnec`
+workflows compile Stan models, so they need a working C++ toolchain.
 
-To confirm the Bayesian path works before relying on it, run
-`workflows/_check_bayesnec.R`, which makes the same sequence of calls the
-workflow document makes and writes the same figure, table and fit. It does not
-render the report, so it needs only the toolchain and not the Quarto CLI:
+### Checking the Stan toolchain
+
+Before the first Bayesian fit, run:
+
+```r
+crworkflows::check_stan_toolchain()          # cmdstanr, the default backend
+crworkflows::check_stan_toolchain("rstan")   # if using rstan instead
+```
+
+This runs the checks the `cmdstanr` and `rstan` installation pages recommend, in
+the order the layers depend on each other, and names the layer that fails:
+
+| Stage | What it establishes |
+|---|---|
+| `packages` | `brms` and the backend package are installed |
+| `toolchain` | a compiler and `make` are present and usable |
+| `cmdstan` | CmdStan itself is installed and its version readable |
+| `stan` | a minimal Stan model compiles and samples |
+| `brms` | `brms` can translate, compile and fit a model |
+
+Later stages are skipped once one fails, so the first `FAIL` is the thing to
+fix. A passing run looks like this:
+
+```
+Stan toolchain check (cmdstanr)
+  PASS packages     0.0s  brms 2.23.0, cmdstanr 0.9.0
+  PASS toolchain    0.0s  cmdstanr reports a usable toolchain.
+  PASS cmdstan      0.0s  CmdStan 2.39.0 at ~/.cmdstan/cmdstan-2.39.0
+  PASS stan         0.6s  A minimal Stan model compiled and sampled (theta = 0.26).
+  PASS brms        11.8s  brms compiled and fitted a model (intercept = 2.14).
+```
+
+A failing run names the layer instead:
+
+```
+Stan toolchain check (cmdstanr)
+  PASS packages     8.0s  brms 2.23.0, cmdstanr 0.8.0
+  FAIL toolchain    0.0s  Rtools44 installation found but the toolchain was not
+                          installed. Run cmdstanr::check_cmdstan_toolchain(fix = TRUE).
+  skip cmdstan      0.0s  Skipped: an earlier stage failed.
+```
+
+The last two stages compile a model. The timings above are for a machine that
+has compiled these models before; a first run takes tens of seconds longer. That
+compilation is the point: a toolchain can look correctly configured and still
+fail to build a model, and only an actual build proves otherwise.
+
+**Prefer this to running a `bayesnec` model as a first test.** A `bayesnec` fit
+compiles a dozen models and takes minutes, and when it fails the error surfaces
+from inside Stan with nothing to say which layer is at fault. Once all stages
+pass, a `bayesnec` fit that still fails is a problem with the model or the data
+rather than with the installation.
+
+On Windows the toolchain means the Rtools matching the installed R: **R 4.5.x
+requires Rtools 4.5**, and an earlier Rtools will not substitute for it. Where
+`cmdstanr` reports the toolchain as missing, `cmdstanr::check_cmdstan_toolchain(fix = TRUE)`
+will attempt to repair it, and `cmdstanr::install_cmdstan()` installs CmdStan
+itself.
+
+Once the toolchain passes, `workflows/_check_bayesnec.R` runs the analysis path
+for one test type end to end without needing the Quarto CLI:
 
 ```bash
 Rscript workflows/_check_bayesnec.R algal_growth
